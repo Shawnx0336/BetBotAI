@@ -12,7 +12,9 @@
 		"@vercel/functions": "^2.0.3",
 		"@whop/api": "^0.0.26",
 		"@whop/react": "0.2.2",
+		"firebase": "^11.9.1",
 		"next": "15.3.2",
+		"node-fetch": "^3.3.2",
 		"react": "^19.0.0",
 		"react-dom": "^19.0.0"
 	},

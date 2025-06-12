@@ -1,14 +1,14 @@
-@layer theme, base, frosted_ui, components, utilities;
+/* app/globals.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@import "tailwindcss/theme.css" layer(theme);
-@import "tailwindcss/preflight.css" layer(base);
-@import "tailwindcss/utilities.css" layer(utilities);
-@import "@whop/react/styles.css" layer(frosted_ui);
-
-@config '../tailwind.config.ts';
-
-body {
-	background: var(--background);
-	color: var(--foreground);
-	font-family: Arial, Helvetica, sans-serif;
+/* You can add any global custom styles here */
+html, body, #__next {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', sans-serif; /* Apply Inter font globally */
+  background-color: #18181b; /* Ensure a consistent background */
+  color: #f4f4f5; /* Ensure text color is readable */
 }
