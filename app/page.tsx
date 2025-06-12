@@ -459,7 +459,11 @@ async function fetchProductionStats(betDescription: string) {
   
   // TIER 1: Sportradar Professional Data
   // Ensure sportradar endpoint and API key are available for the detected sport
-  if (parsedBet.sport && PRODUCTION_API_ENDPOINTS.sportradar[parsedBet.sport] && PRODUCTION_KEYS.sportradar) {
+  const validSports = ['nba', 'nfl', 'mlb', 'nhl'] as const;
+if (parsedBet.sport && 
+    validSports.includes(parsedBet.sport) && 
+    PRODUCTION_API_ENDPOINTS.sportradar[parsedBet.sport] && 
+    PRODUCTION_KEYS.sportradar) {
     try {
       console.log(`🏆 Attempting Sportradar ${parsedBet.sport.toUpperCase()} API`);
       
