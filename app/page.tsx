@@ -113,17 +113,19 @@ const initializeFirebase = () => {
     let firebaseConfig: object | null = null;
     let configSource = '';
 
-    // Prioritize __firebase_config from Canvas environment
-    if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+    // Prioritize __firebase_config from Canvas environment (with safe check)
+    if (typeof globalThis !== 'undefined' && 
+        '__firebase_config' in globalThis && 
+        globalThis.__firebase_config) {
       try {
-        firebaseConfig = JSON.parse(__firebase_config);
+        firebaseConfig = JSON.parse(globalThis.__firebase_config as string);
         configSource = '__firebase_config (Canvas)';
       } catch (error) {
         console.error("Error parsing __firebase_config:", error);
       }
     }
 
-    // Fallback to process.env.NEXT_PUBLIC_FIREBASE_CONFIG if __firebase_config is not available or invalid
+    // Fallback to process.env.NEXT_PUBLIC_FIREBASE_CONFIG
     if (!firebaseConfig && typeof process !== 'undefined' && process.env.NEXT_PUBLIC_FIREBASE_CONFIG) {
       try {
         firebaseConfig = JSON.parse(process.env.NEXT_PUBLIC_FIREBASE_CONFIG);
@@ -148,7 +150,6 @@ const initializeFirebase = () => {
     }
   }
 };
-
 
 // =================================================================================================
 // PRODUCTION API HIERARCHY - NO MOCK DATA ALLOWED
