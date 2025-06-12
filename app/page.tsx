@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { handleApiError } from '../utils/apiHelpers';
 
 // REQUIRED INTERFACES
 interface BetSubmission {
@@ -153,7 +154,7 @@ const initializeFirebase = () => {
 // UTILITY FUNCTIONS & PRODUCTION SPORTS API INTEGRATION
 // =================================================================================================
 
-export const handleApiError = (error: any, context: string): string => {
+const handleApiError = (error: any, context: string): string => {
   if (error instanceof Error) {
     if (error.message.includes('rate limit') || error.message.includes('429')) {
       return `⏳ ${context} is temporarily busy. Please try again in a moment.`;
