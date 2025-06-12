@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { handleApiError } from '../utils/apiHelpers';
+import { handleApiError, getCachedData, setCachedData } from '../utils/apiHelpers';
 
 // REQUIRED INTERFACES
 interface BetSubmission {
