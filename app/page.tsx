@@ -1,6 +1,286 @@
 "use client";
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { handleApiError, getCachedData, setCachedData, createFallbackParsing, PRODUCTION_API_ENDPOINTS, PRODUCTION_KEYS } from '../utils/apiHelpers';
+// The original import for apiHelpers caused a resolution error.
+// The necessary functions and constants from utils/apiHelpers.ts are being inlined here
+// to resolve the 'Could not resolve' error.
+
+// =================================================================================================
+// CACHE SYSTEM (INLINED from utils/apiHelpers.ts)
+// =================================================================================================
+
+const cache = new Map();
+const CACHE_DURATIONS = {
+  odds: 2 * 60 * 1000,      // 2 minutes
+  stats: 10 * 60 * 1000,    // 10 minutes
+  ai_parsing: 60 * 60 * 1000 // 1 hour
+};
+
+const getCachedData = (key: string) => {
+  const cached = cache.get(key);
+  if (cached && Date.now() - cached.timestamp < cached.ttl) {
+    return cached.data;
+  }
+  return null;
+};
+
+const setCachedData = (key: string, data: any, type: 'odds' | 'stats' | 'ai_parsing') => {
+  cache.set(key, {
+    data,
+    timestamp: Date.now(),
+    ttl: CACHE_DURATIONS[type]
+  });
+};
+
+// =================================================================================================
+// ERROR HANDLING (INLINED from utils/apiHelpers.ts)
+// =================================================================================================
+
+const handleApiError = (error: any, context: string): string => {
+  if (error instanceof Error) {
+    if (error.message.includes('rate limit') || error.message.includes('429')) {
+      return `⏳ ${context} is temporarily busy. Please try again in a moment.`;
+    }
+    if (error.message.includes('unauthorized') || error.message.includes('401')) {
+      return `🔐 ${context} access denied. Please check your API key or subscription.`;
+    }
+    if (error.message.includes('openai')) {
+      return `🤖 AI analysis temporarily unavailable. Using fallback analysis.`;
+    }
+    if (error.message.includes('Failed to fetch') || error.message.includes('network')) {
+      return `⚠️ Connection issue for ${context}. Please check your internet and try again.`;
+    }
+    if (error.message.includes('not found') || error.message.includes('404')) {
+      return `⚠️ Data for ${context} not found. The game/player might not be active or recognizable.`;
+    }
+  }
+
+  console.error(`${context} error:`, error);
+  return `⚠️ ${context} encountered an issue. Our team has been notified.`;
+};
+
+// =================================================================================================
+// API ENDPOINTS AND KEYS (INLINED from utils/apiHelpers.ts)
+// =================================================================================================
+
+const PRODUCTION_API_ENDPOINTS = {
+  theOddsAPI: 'https://api.the-odds-api.com/v4',
+  sportradar: {
+    nba: typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SPORTRADAR_NBA_ENDPOINT : '',
+    nfl: typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SPORTRADAR_NFL_ENDPOINT : '',
+    mlb: typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SPORTRADAR_MLB_ENDPOINT : '',
+    nhl: typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SPORTRADAR_NHL_ENDPOINT : '',
+  },
+  openai: 'https://api.openai.com/v1/chat/completions'
+};
+
+const PRODUCTION_KEYS = {
+  theOdds: typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SPORTS_API_KEY : '',
+  sportradar: typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SPORTRADAR_API_KEY : '',
+  openai: typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_OPENAI_API_KEY : '',
+};
+
+// =================================================================================================
+// FALLBACK PARSING FUNCTION (INLINED from utils/apiHelpers.ts)
+// =================================================================================================
+
+function createFallbackParsing(betDescription: string) {
+  const lower = betDescription.toLowerCase();
+  let result: any = {
+    sport: null,
+    type: 'team',
+    teams: null,
+    player: null,
+    line: null,
+    betOn: null,
+    confidence: 0.7,
+    specificBetType: null
+  };
+
+  // Enhanced sport detection
+  if (lower.includes('nfl') || lower.includes('football') || lower.includes('chiefs') || lower.includes('mahomes') || lower.includes('touchdown')) {
+    result.sport = 'nfl';
+    if (lower.includes('touchdown')) result.specificBetType = 'touchdown_pass';
+    if (lower.includes('rushing yards')) result.specificBetType = 'rushing_yards';
+  } else if (lower.includes('nba') || lower.includes('basketball') || lower.includes('lakers') || lower.includes('lebron') || lower.includes('points')) {
+    result.sport = 'nba';
+    if (lower.includes('points')) result.specificBetType = 'points';
+    if (lower.includes('assists')) result.specificBetType = 'assists';
+    if (lower.includes('rebounds')) result.specificBetType = 'rebounds';
+  } else if (lower.includes('mlb') || lower.includes('baseball') || lower.includes('yankees') || lower.includes('home run')) {
+    result.sport = 'mlb';
+    if (lower.includes('home run')) result.specificBetType = 'home_run';
+    if (lower.includes('hits')) result.specificBetType = 'hits';
+    if (lower.includes('strikeouts')) result.specificBetType = 'strikeouts';
+  } else if (lower.includes('nhl') || lower.includes('hockey') || lower.includes('oilers') || lower.includes('goals')) {
+    result.sport = 'nhl';
+    if (lower.includes('goals')) result.specificBetType = 'goals';
+    if (lower.includes('saves')) result.specificBetType = 'saves';
+  } else if (lower.includes('soccer') || lower.includes('manchester') || lower.includes('arsenal')) {
+    result.sport = 'soccer';
+    if (lower.includes('goals')) result.specificBetType = 'goals';
+  }
+
+  // Enhanced player detection
+  const playerNames = ['lebron', 'mahomes', 'judge', 'mcdavid', 'curry', 'allen', 'burrow'];
+  if (playerNames.some(name => lower.includes(name))) {
+    result.type = 'player';
+    if (lower.includes('lebron')) result.player = 'LeBron James';
+    else if (lower.includes('mahomes')) result.player = 'Patrick Mahomes';
+    else if (lower.includes('curry')) result.player = 'Stephen Curry';
+    else if (lower.includes('judge')) result.player = 'Aaron Judge';
+    else if (lower.includes('mcdavid')) result.player = 'Connor McDavid';
+    else if (lower.includes('allen')) result.player = 'Josh Allen';
+    else if (lower.includes('burrow')) result.player = 'Joe Burrow';
+  }
+
+  // Enhanced team detection
+  const teamMatch = /(\w+(?:\s+\w+)?)\s+(?:vs|@)\s+(\w+(?:\s+\w+)?)/.exec(lower);
+  if (teamMatch) {
+    result.teams = [teamMatch[1].trim(), teamMatch[2].trim()];
+  } else {
+    const singleTeamMatch = /^(?:the\s+)?(\w+(?:\s+\w+)?)\s+(?:to\s+win|moneyline|ml)/.exec(lower);
+    if (singleTeamMatch) {
+      result.teams = [singleTeamMatch[1].trim()];
+    }
+  }
+
+  // Enhanced bet type detection
+  if (lower.includes('over')) result.betOn = 'over';
+  else if (lower.includes('under')) result.betOn = 'under';
+
+  if (lower.includes('moneyline') || lower.includes('ml') || lower.includes('to win')) {
+    if (result.teams && result.teams.length > 0) {
+      result.betOn = `${result.teams[0]}_win`;
+      result.type = 'team';
+    }
+  }
+
+  if (lower.includes('spread') || lower.includes('-') || lower.includes('+')) {
+    result.betOn = 'spread';
+    result.type = 'team';
+  }
+
+  // Extract numbers for lines
+  const numberMatch = /(\d+\.?\d*)/.exec(lower);
+  if (numberMatch) {
+    const numberValue = parseFloat(numberMatch[1]);
+    if (result.type === 'player' && result.player) {
+      result.line = numberValue;
+      result.betOn = result.betOn || (lower.includes('over') ? 'over' : 'under');
+    } else if (result.type === 'team' && (lower.includes('total') || lower.includes('over') || lower.includes('under'))) {
+        result.line = numberValue;
+        result.betOn = result.betOn || (lower.includes('over') ? 'over' : 'under');
+    } else if (result.type === 'team' && (lower.includes('spread') || lower.includes('-') || lower.includes('+'))) {
+        result.line = parseFloat(numberMatch[1]) * (lower.includes('-') ? -1 : 1);
+        result.betOn = 'spread';
+    }
+  }
+
+  // Refine type based on detected betOn
+  if (result.betOn === 'over' || result.betOn === 'under') {
+    if (result.player) {
+      result.type = 'prop';
+    } else if (result.teams) {
+      result.type = 'total';
+    }
+  } else if (result.betOn === 'spread' || result.betOn === 'team1_win' || result.betOn === 'team2_win') {
+    result.type = 'straight';
+  }
+
+  // Final sport check
+  if (!result.sport && (result.teams || result.player)) {
+    result.sport = 'nba'; // Default if unsure
+  }
+
+  console.log('🔄 Fallback parsing result:', result);
+  return result;
+}
+
+// =================================================================================================
+// MANUAL KEY FACTORS GENERATION (INLINED from utils/apiHelpers.ts)
+// =================================================================================================
+
+function generateManualKeyFactors(parsedBet: any, odds: any, stats: any) {
+  const factors = [];
+
+  // Odds-based factors
+  if (odds.source && odds.source !== 'Calculated (No Live Odds)') {
+    factors.push(`Live odds available from ${odds.source}`);
+    if (odds.draftkings?.spread) {
+      factors.push(`Current spread: ${odds.draftkings.spread > 0 ? '+' : ''}${odds.draftkings.spread}`);
+    }
+    if (odds.draftkings?.total) {
+      factors.push(`Total line: ${odds.draftkings.total}`);
+    }
+    if (odds.draftkings?.moneylineHome && odds.draftkings?.moneylineAway) {
+        factors.push(`Moneyline for Home: ${odds.draftkings.moneylineHome}, Away: ${odds.draftkings.moneylineAway}`);
+    }
+  } else {
+    factors.push('No live odds - analysis based on statistical models');
+  }
+
+  // Stats-based factors
+  if (stats.source === 'Sportradar Professional Data') {
+    if (parsedBet.type === 'player' && stats.player) {
+      if (stats.player.seasonAveragePoints) {
+        factors.push(`Sportradar Season Average: ${stats.player.seasonAveragePoints} points`);
+      }
+      if (stats.player.usageRate && stats.player.usageRate > 0.25) {
+        factors.push(`Sportradar High Usage Rate: ${Math.round(stats.player.usageRate * 100)}%`);
+      }
+      if (stats.player.minutesPlayed && stats.player.minutesPlayed > 20) {
+        factors.push(`Sportradar Minutes Played: ${stats.player.minutesPlayed} per game`);
+      }
+      if (stats.player.team) {
+        factors.push(`Player team: ${stats.player.team}`);
+      }
+      if (stats.player.position) {
+        factors.push(`Player position: ${stats.player.position}`);
+      }
+    } else if (parsedBet.type === 'team' && stats.team1 && stats.team2) {
+      if (stats.team1.offenseRating && stats.team1.offenseRating > 0.7) {
+        factors.push(`Sportradar ${stats.team1.name} has elite offense (${Math.round(stats.team1.offenseRating * 100)}% rating)`);
+      }
+      if (stats.team2.defenseRating && stats.team2.defenseRating > 0.7) {
+        factors.push(`Sportradar ${stats.team2.name} has strong defense (${Math.round(stats.team2.defenseRating * 100)}% rating)`);
+      }
+      if (stats.team1.homeRecord && !stats.team1.homeRecord.includes('0-0')) {
+        factors.push(`Sportradar ${stats.team1.name} home record: ${stats.team1.homeRecord}`);
+      }
+      if (stats.team1.injuries && stats.team1.injuries.length > 0) {
+        factors.push(`Sportradar ${stats.team1.name} has ${stats.team1.injuries.length} reported injuries`);
+      }
+    }
+  } else if (stats.source === 'Derived/Enhanced Stats') {
+    factors.push('Analysis leverages dynamically generated statistical estimates');
+    if (parsedBet.type === 'team' && stats.team1 && stats.team2) {
+        if (stats.team1.offenseRating) factors.push(`Team 1 offense rating: ${Math.round(stats.team1.offenseRating * 100)}%`);
+        if (stats.team2.defenseRating) factors.push(`Team 2 defense rating: ${Math.round(stats.team2.defenseRating * 100)}%`);
+    } else if (parsedBet.type === 'player' && stats.player) {
+        if (parsedBet.sport === 'mlb') {
+          if (stats.player.homeRunsThisSeason) factors.push(`Player home runs this season: ${stats.player.homeRunsThisSeason}`);
+          if (stats.player.battingAverage) factors.push(`Player batting average: ${stats.player.battingAverage.toFixed(3)}`);
+          if (stats.player.homeRunsLast10Games !== undefined) factors.push(`Player home runs last 10 games: ${stats.player.homeRunsLast10Games}`);
+        } else if (parsedBet.sport === 'nfl') {
+          if (stats.player.touchdownPassesThisSeason) factors.push(`Player TD passes this season: ${stats.player.touchdownPassesThisSeason}`);
+          if (stats.player.passingYardsPerGame) factors.push(`Player passing yards per game: ${stats.player.passingYardsPerGame}`);
+        } else if (parsedBet.sport === 'nba') {
+          if (stats.player.seasonAveragePoints) factors.push(`Player average points: ${stats.player.seasonAveragePoints}`);
+          if (stats.player.usageRate) factors.push(`Player usage rate: ${Math.round(stats.player.usageRate * 100)}%`);
+        }
+    }
+  } else {
+    factors.push('Analysis based on general statistical trends');
+  }
+
+  // Ensure we always have at least 3 factors
+  while (factors.length < 3) {
+    factors.push('Additional general betting factors considered');
+  }
+
+  return factors.slice(0, 5); // Max 5 factors
+}
+
 
 // REQUIRED INTERFACES
 interface BetSubmission {
@@ -15,7 +295,7 @@ interface CreatorAlgorithm {
   // Straight bet weights (team vs team)
   straightBetWeights: {
     teamOffense: number;      // 0-1 (team offensive rating)
-    teamDefense: number;      // 0-1 (team defensive rating) 
+    teamDefense: number;      // 0-1 (team defensive rating)
     headToHead: number;       // 0-1 (historical matchups)
     homeAway: number;         // 0-1 (home court advantage)
     injuries: number;         // 0-1 (key player availability)
@@ -80,7 +360,7 @@ const whopApi = {
     await new Promise(resolve => setTimeout(resolve, 200));
     const access = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_WHOP_AGENT_USER_ID ? 'admin' : 'customer';
     // Always return 'customer' or 'admin', never 'no_access' as per instructions.
-    return { access: access === 'admin' ? 'admin' : 'customer' }; 
+    return { access: access === 'admin' ? 'admin' : 'customer' };
   },
   // Simulates whopApi.accessPasses.list() - This will no longer be used.
   getAccessPass: async ({ companyId }: { companyId: string }) => {
@@ -97,11 +377,11 @@ const whopApi = {
 
 // Firebase Initialization (using global variables provided by Canvas)
 import { initializeApp } from 'firebase/app';
-import { 
-  getFirestore, doc, getDoc, addDoc, setDoc, collection, query, limit, getDocs 
+import {
+  getFirestore, doc, getDoc, addDoc, setDoc, collection, query, limit, getDocs
 } from 'firebase/firestore';
-import { 
-  getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, User 
+import {
+  getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, User
 } from 'firebase/auth';
 
 let firebaseApp: ReturnType<typeof initializeApp> | undefined;
@@ -114,8 +394,8 @@ const initializeFirebase = () => {
     let configSource = '';
 
     // Prioritize __firebase_config from Canvas environment (with safe check)
-    if (typeof globalThis !== 'undefined' && 
-        '__firebase_config' in globalThis && 
+    if (typeof globalThis !== 'undefined' &&
+        '__firebase_config' in globalThis &&
         globalThis.__firebase_config) {
       try {
         firebaseConfig = JSON.parse(globalThis.__firebase_config as string);
@@ -134,12 +414,12 @@ const initializeFirebase = () => {
         console.error("Error parsing NEXT_PUBLIC_FIREBASE_CONFIG:", error);
       }
     }
-    
+
     if (!firebaseConfig || Object.keys(firebaseConfig).length === 0) {
       console.error('Firebase config not found or invalid.');
       return;
     }
-    
+
     try {
       firebaseApp = initializeApp(firebaseConfig);
       db = getFirestore(firebaseApp);
@@ -187,7 +467,7 @@ Bet: "${betDescription}"
 Return ONLY this JSON structure:
 {
   "sport": "nba|nfl|mlb|nhl|soccer|tennis|mma",
-  "type": "team|player", 
+  "type": "team|player",
   "teams": ["Team 1", "Team 2"] or null,
   "player": "Full Player Name" or null,
   "line": number or null,
@@ -198,7 +478,7 @@ Return ONLY this JSON structure:
 
 CRITICAL SPORT-SPECIFIC RULES:
 - MLB: "home run", "RBI", "hits", "strikeouts", "stolen bases", "runs scored"
-- NFL: "touchdown_pass", "rushing_yards", "receptions", "passing_yards"  
+- NFL: "touchdown_pass", "rushing_yards", "receptions", "passing_yards"
 - NBA: "points", "assists", "rebounds", "steals", "blocks", "three_pointers"
 - NHL: "goals", "assists", "saves", "shots_on_goal"
 
@@ -228,7 +508,7 @@ Examples:
     }
 
     const data = await response.json();
-    
+
     if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
       throw new Error('Invalid OpenAI response structure');
     }
@@ -238,11 +518,11 @@ Examples:
       content = content.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
     }
     const result = JSON.parse(content);
-    
+
     console.log('🤖 Enhanced AI Parsed Bet:', result);
     setCachedData(cacheKey, result, 'ai_parsing');
     return result;
-    
+
   } catch (error) {
     console.error('AI parsing failed:', error);
     return createFallbackParsing(betDescription);
@@ -251,7 +531,7 @@ Examples:
 
 function detectBetType(parsedBet: any): 'straight' | 'prop' | 'total' | 'moneyline' {
   if (!parsedBet) return 'straight';
-   
+
   if (parsedBet.type === 'player') {
     return 'prop';
   } else if (parsedBet.betOn === 'over' || parsedBet.betOn === 'under') {
@@ -268,14 +548,14 @@ function detectBetType(parsedBet: any): 'straight' | 'prop' | 'total' | 'moneyli
 // =================================================================================================
 async function aiMatchGame(apiData: any[], parsedBet: any) {
   if (!parsedBet.teams || parsedBet.teams.length < 2) return null;
-  
+
   // Check if OpenAI key is available and sufficiently long
   if (!PRODUCTION_KEYS.openai || PRODUCTION_KEYS.openai.length < 10) {
     console.warn('OpenAI API key not configured for AI game matching. Using basic string matching fallback.');
     // Fallback to simple string matching
     return apiData.find(game => {
       const gameString = `${game.home_team} vs ${game.away_team}`.toLowerCase();
-      return parsedBet.teams.some((team: string) => 
+      return parsedBet.teams.some((team: string) =>
         gameString.includes(team.toLowerCase())
       );
     });
@@ -311,7 +591,7 @@ Return only the exact game string that matches, or "NO_MATCH" if none match.`;
     }
 
     const data = await response.json();
-    
+
     if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
       throw new Error('Invalid OpenAI response structure for game matching');
     }
@@ -322,26 +602,26 @@ Return only the exact game string that matches, or "NO_MATCH" if none match.`;
       content = content.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
     }
     const matchResult = content; // Assuming the match result is directly the content
-    
+
     if (matchResult === "NO_MATCH") return null;
-    
-    const matchedGame = apiData.find(game => 
+
+    const matchedGame = apiData.find(game =>
       `${game.home_team} vs ${game.away_team}` === matchResult
     );
-    
+
     if (matchedGame) {
       console.log(`✅ AI matched game: ${matchedGame.home_team} vs ${matchedGame.away_team}`);
     } else {
       console.warn(`❌ AI suggested match "${matchResult}" not found in API data.`);
     }
     return matchedGame;
-    
+
   } catch (error) {
     console.error('AI game matching failed:', error);
     // Fallback to simple string matching if AI fails
     return apiData.find(game => {
       const gameString = `${game.home_team} vs ${game.away_team}`.toLowerCase();
-      return parsedBet.teams.some((team: string) => 
+      return parsedBet.teams.some((team: string) =>
         gameString.includes(team.toLowerCase())
       );
     });
@@ -352,13 +632,13 @@ Return only the exact game string that matches, or "NO_MATCH" if none match.`;
 // Helper function to transform The Odds API response into a common odds format
 function transformOddsData(matchingGame: any) {
   const result: any = {};
-  
+
   if (!matchingGame) return {};
 
   matchingGame.bookmakers.forEach((bookmaker: any) => {
     const bookmakerName = bookmaker.key.replace(/_|-/g, ''); // Normalize bookmaker name (e.g., draftkings, fanduel)
     result[bookmakerName] = {};
-    
+
     bookmaker.markets.forEach((market: any) => {
       if (market.key === 'spreads') {
         const homeOutcome = market.outcomes.find((o: any) => o.name === matchingGame.home_team);
@@ -405,7 +685,7 @@ async function fetchProductionOdds(betDescription: string) {
       // The Odds API only supports specific markets.
       // We are fetching for team vs team bets, so include spreads, totals, h2h.
       const oddsUrl = `${PRODUCTION_API_ENDPOINTS.theOddsAPI}/sports/${sportConfig.key}/odds/?apiKey=${PRODUCTION_KEYS.theOdds}&regions=us&markets=spreads,totals,h2h&oddsFormat=american&bookmakers=draftkings,fanduel,betmgm,caesars`;
-      
+
       const response = await fetch(oddsUrl);
       if (response.ok) {
         const data = await response.json();
@@ -456,17 +736,17 @@ async function fetchProductionStats(betDescription: string) {
   if (cached) return cached;
 
   const parsedBet = await aiPoweredBetParsing(betDescription);
-  
+
   // TIER 1: Sportradar Professional Data
   // Ensure sportradar endpoint and API key are available for the detected sport
   const validSports = ['nba', 'nfl', 'mlb', 'nhl'] as const;
-if (parsedBet.sport && 
-    validSports.includes(parsedBet.sport) && 
-    PRODUCTION_API_ENDPOINTS.sportradar[parsedBet.sport] && 
+if (parsedBet.sport &&
+    validSports.includes(parsedBet.sport) &&
+    PRODUCTION_API_ENDPOINTS.sportradar[parsedBet.sport] &&
     PRODUCTION_KEYS.sportradar) {
     try {
       console.log(`🏆 Attempting Sportradar ${parsedBet.sport.toUpperCase()} API`);
-      
+
       if (parsedBet.type === 'player' && parsedBet.player) {
         const playerStats = await fetchSportradarPlayerStats(parsedBet.player, parsedBet.sport);
         if (playerStats && !playerStats.error) {
@@ -504,16 +784,16 @@ async function fetchSportradarPlayerStats(playerName: string, sport: string) {
   if (!sport) {
     return { error: `Sport not specified for Sportradar player stats.` };
   }
-  
+
   try {
     // Build the proxy URL. The backend proxy will translate this into the actual Sportradar API call.
     const proxyUrl = `/api/sportradar-proxy?sport=${sport}&type=player&player=${encodeURIComponent(playerName)}`;
-    
+
     console.log(`🔗 Proxy URL for Sportradar ${sport} Player: ${proxyUrl}`);
-    
+
     const response = await fetch(proxyUrl);
     console.log(`📡 Sportradar ${sport} Player Proxy Response Status: ${response.status}`);
-    
+
     if (response.ok) {
       const data = await response.json();
       const processedData = processSportradarPlayerData(data, playerName, sport);
@@ -543,17 +823,17 @@ async function fetchSportradarTeamStats(teams: string[], sport: string) {
   if (!sport) {
     return { error: `Sport not specified for Sportradar team stats.` };
   }
-  
+
   try {
     // Build the proxy URL. The backend proxy will translate this into the actual Sportradar API call.
     // We stringify the teams array to pass it as a single query parameter.
     const proxyUrl = `/api/sportradar-proxy?sport=${sport}&type=team&teams=${encodeURIComponent(JSON.stringify(teams))}`;
-    
+
     console.log(`🔗 Proxy URL for Sportradar ${sport} Team: ${proxyUrl}`);
-    
+
     const response = await fetch(proxyUrl);
     console.log(`📡 Sportradar ${sport} Team Proxy Response Status: ${response.status}`);
-    
+
     if (response.ok) {
       const data = await response.json();
       const processedData = processSportradarTeamData(data, teams, sport);
@@ -577,19 +857,19 @@ async function fetchSportradarTeamStats(teams: string[], sport: string) {
 function processSportradarPlayerData(data: any, playerName: string, sport: string) {
   console.log(`🔍 Processing Sportradar ${sport} player data for: ${playerName}`);
   console.log(`📥 Raw Sportradar ${sport} data structure:`, Object.keys(data));
-  
+
   let playerData = null;
-  
+
   if (sport === 'nba' && data.categories) {
     // NBA League Leaders has categories like "points", "assists", etc.
     console.log(`🏀 NBA categories found:`, Object.keys(data.categories));
-    
+
     // Look through all stat categories for the player
     for (const categoryKey in data.categories) { // Use for...in for object keys
       if (data.categories.hasOwnProperty(categoryKey)) {
         const players = data.categories[categoryKey];
         if (Array.isArray(players)) {
-          const found = players.find((p: any) => 
+          const found = players.find((p: any) =>
             p.full_name?.toLowerCase().includes(playerName.toLowerCase()) ||
             p.name?.toLowerCase().includes(playerName.toLowerCase())
           );
@@ -599,7 +879,7 @@ function processSportradarPlayerData(data: any, playerName: string, sport: strin
             // We found the player, but stats are spread across categories.
             // For simplicity, we'll try to aggregate what's commonly available.
             // A more robust solution would iterate through all categories and sum/average stats.
-            break; 
+            break;
           }
         }
       }
@@ -607,12 +887,12 @@ function processSportradarPlayerData(data: any, playerName: string, sport: strin
   } else if (data.conferences) {
     // NFL/MLB/NHL Hierarchy - look through teams for players
     console.log(`🏈 League hierarchy found, searching teams...`);
-    
+
     for (const conference of data.conferences) {
       for (const division of conference.divisions || []) {
         for (const team of division.teams || []) {
           if (team.players) {
-            const found = team.players.find((p: any) => 
+            const found = team.players.find((p: any) =>
               p.full_name?.toLowerCase().includes(playerName.toLowerCase()) ||
               p.name?.toLowerCase().includes(playerName.toLowerCase())
             );
@@ -630,12 +910,12 @@ function processSportradarPlayerData(data: any, playerName: string, sport: strin
     console.log(`⚠️ No recognizable player data structure found`);
     console.log(`🔍 Available data keys:`, Object.keys(data));
   }
-  
+
   if (!playerData) {
     console.warn(`❌ Player ${playerName} not found in Sportradar data`);
     return { error: `Player ${playerName} not found` };
   }
-  
+
   // Extract stats based on sport
   let stats: any = {};
   if (sport === 'nba') {
@@ -673,7 +953,7 @@ function processSportradarPlayerData(data: any, playerName: string, sport: strin
       savePercentage: playerData.statistics?.save_percentage || 0, // For goalies
     };
   }
-  
+
   return {
     source: 'Sportradar Professional Data',
     player: {
@@ -688,7 +968,7 @@ function processSportradarPlayerData(data: any, playerName: string, sport: strin
 // Process Sportradar Team Data
 function processSportradarTeamData(data: any, teams: string[], sport: string) {
   console.log(`🔍 Processing Sportradar ${sport} team data for: ${teams.join(' vs ')}`);
-  
+
   const findTeam = (teamName: string) => {
     // Sportradar hierarchy for teams is usually under conferences -> divisions -> teams
     if (!data.conferences || !Array.isArray(data.conferences)) return null;
@@ -709,10 +989,10 @@ function processSportradarTeamData(data: any, teams: string[], sport: string) {
     }
     return null;
   };
-  
+
   const team1Data = findTeam(teams[0]);
   const team2Data = findTeam(teams[1]);
-  
+
   const processTeam = (teamData: any, teamName: string) => {
     if (!teamData) {
       console.warn(`Team ${teamName} not found in Sportradar data for ${sport}`);
@@ -726,11 +1006,11 @@ function processSportradarTeamData(data: any, teams: string[], sport: string) {
         restDays: 0 // Placeholder
       };
     }
-    
+
     // Extract common statistics. Specific keys might vary per sport within Sportradar.
     // In Sportradar hierarchy, team stats might be directly on the team object or under a 'statistics' key.
-    const stats = teamData.season_stats || teamData.statistics || {}; 
-    
+    const stats = teamData.season_stats || teamData.statistics || {};
+
     return {
       name: teamName,
       // These stat keys are generalized examples and might need adjustment based on actual API response for each sport.
@@ -742,7 +1022,7 @@ function processSportradarTeamData(data: any, teams: string[], sport: string) {
       restDays: Math.floor(Math.random() * 4) // Placeholder
     };
   };
-  
+
   return {
     source: 'Sportradar Professional Data',
     team1: processTeam(team1Data, teams[0]),
@@ -756,7 +1036,7 @@ function generateDerivedStats(parsedBet: any) {
   if (parsedBet.type === 'team' && parsedBet.teams && parsedBet.teams.length >= 2) {
     return {
       source: 'Derived/Enhanced Stats',
-      team1: { 
+      team1: {
         name: parsedBet.teams[0],
         offenseRating: 0.55 + Math.random() * 0.3,
         defenseRating: 0.50 + Math.random() * 0.3,
@@ -765,7 +1045,7 @@ function generateDerivedStats(parsedBet: any) {
         injuries: Math.random() > 0.8 ? [`(Derived) ${currentYear} Key Player Injured`] : [],
         restDays: Math.floor(Math.random() * 5)
       },
-      team2: { 
+      team2: {
         name: parsedBet.teams[1],
         offenseRating: 0.55 + Math.random() * 0.3,
         defenseRating: 0.50 + Math.random() * 0.3,
@@ -788,7 +1068,7 @@ function generateDerivedStats(parsedBet: any) {
       }
     };
   }
-  
+
   return { source: 'No Data Available', error: 'Unable to generate stats for this bet type' };
 }
 
@@ -850,7 +1130,7 @@ Make factors SPECIFIC to the sport and bet type. NO generic basketball terms for
       console.error('Enhanced AI key factors failed:', error);
     }
   }
-  
+
   return generateManualKeyFactors(parsedBet, odds, stats);
 }
 // =================================================================================================
@@ -866,15 +1146,15 @@ function calculateAIWinProbability(parsedBet: any, odds: any, stats: any, aiConf
       // Aaron Judge home run logic
       if (parsedBet.player?.toLowerCase().includes('judge')) {
         baseProbability = 25; // Judge hits ~1 HR every 4 games, so ~25% base
-        
+
         // Adjust based on recent form
         if (stats.player?.recentForm > stats.player?.seasonAverage) {
           baseProbability += 15; // Hot streak
         }
-        
+
         // Ballpark factors (if we had them)
         baseProbability += 5; // Assume neutral park
-        
+
         // Quality of opposing pitcher (derive from stats)
         if (stats.team2?.defenseRating > 0.7) {
           baseProbability -= 10; // Good pitcher
@@ -910,7 +1190,7 @@ function calculateAIWinProbability(parsedBet: any, odds: any, stats: any, aiConf
   // Random variance
   const randomFactor = (Math.random() - 0.5) * 8;
   baseProbability += randomFactor;
-  
+
   return Math.max(5, Math.min(95, Math.round(baseProbability)));
 }
 
@@ -968,7 +1248,7 @@ const generateCreatorResponse = async (
 const trackAnalysisPerformance = async (betDescription: string, startTime: number) => {
   const duration = Date.now() - startTime;
   console.log(`📊 Analysis Performance: "${betDescription}" took ${duration}ms`);
-  
+
   // Log to analytics if available (gtag is a common global for Google Analytics)
   // if (typeof gtag !== 'undefined') {
   //   gtag('event', 'analysis_performance', {
@@ -979,7 +1259,7 @@ const trackAnalysisPerformance = async (betDescription: string, startTime: numbe
 };
 
 const analyzeBet = async (
-  betDescription: string, 
+  betDescription: string,
   creatorAlgorithm: CreatorAlgorithm
 ): Promise<BetAnalysis> => {
   const startTime = Date.now(); // Start performance tracking
@@ -1067,9 +1347,9 @@ const AnalysisProgress = ({ stage }: { stage: string }) => (
 
 
 // FEATURE 2: Smart Bet Input Form
-const BetAnalysisForm = ({ 
-  onSubmit, 
-  isLoading 
+const BetAnalysisForm = ({
+  onSubmit,
+  isLoading
 }: {
   onSubmit: (bet: string) => Promise<void>;
   isLoading: boolean;
@@ -1078,18 +1358,18 @@ const BetAnalysisForm = ({
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const placeholderExamples = useMemo(() => [
     "Lakers -7.5 vs Warriors tonight",
-    "LeBron James over 25.5 points", 
+    "LeBron James over 25.5 points",
     "Chiefs vs Bills Over 48.5",
     "Celtics moneyline vs Heat",
-    "Mahomes over 2.5 touchdown passes", 
-    "Josh Allen rushing yards over 45.5", 
-    "Yankees vs Red Sox tonight",          
-    "Dodgers -1.5 vs Giants",             
+    "Mahomes over 2.5 touchdown passes",
+    "Josh Allen rushing yards over 45.5",
+    "Yankees vs Red Sox tonight",
+    "Dodgers -1.5 vs Giants",
     "Manchester United to win", // Example for soccer
-    "Invalid team names test",             
-    "Network timeout simulation"          
+    "Invalid team names test",
+    "Network timeout simulation"
   ], []);
-  
+
   useEffect(() => {
     const interval = setInterval(() => {
       setPlaceholderIndex(prevIndex => (prevIndex + 1) % placeholderExamples.length);
@@ -1104,13 +1384,13 @@ const BetAnalysisForm = ({
       setAiSuggestions([]);
       return;
     }
-    
+
     // Skip AI suggestions if OpenAI key not available
     if (!PRODUCTION_KEYS.openai || PRODUCTION_KEYS.openai.length < 10) {
       setAiSuggestions([]);
       return;
     }
-    
+
     try {
       const response = await fetch(PRODUCTION_API_ENDPOINTS.openai, {
         method: 'POST',
@@ -1120,8 +1400,8 @@ const BetAnalysisForm = ({
         },
         body: JSON.stringify({
           model: 'gpt-4o-mini',
-          messages: [{ 
-            role: 'user', 
+          messages: [{
+            role: 'user',
             content: `Complete this betting query with 3 realistic suggestions: "${input}". Return JSON array: ["suggestion 1", "suggestion 2", "suggestion 3"]`
           }],
           max_tokens: 100,
@@ -1136,7 +1416,7 @@ const BetAnalysisForm = ({
       }
 
       const data = await response.json();
-      
+
       if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
         let content = data.choices[0].message.content.trim();
         if (content.startsWith("```json")) {
@@ -1240,10 +1520,21 @@ const BetAnalysisForm = ({
   );
 };
 
+// Moved outside BetAnalysisResults to be accessible by CreatorSettings
+const getRecommendationColors = (recommendation: string) => {
+  switch(recommendation) {
+    case 'strong_play': return { backgroundColor: '#059669', color: '#ecfdf5', icon: '🔥' }; // bg-lime-600 text-lime-100
+    case 'lean': return { backgroundColor: '#0284c7', color: '#e0f2fe', icon: '👍' }; // bg-sky-600 text-sky-100
+    case 'pass': return { backgroundColor: '#6b7280', color: '#f9fafb', icon: '⏸️' }; // bg-zinc-600 text-zinc-100
+    case 'fade': return { backgroundColor: '#dc2626', color: '#fef2f2', icon: '❌' }; // bg-rose-600 text-rose-100
+    default: return { backgroundColor: '#71717a', color: '#f4f4f5', icon: '❓' }; // bg-zinc-500 text-white
+  }
+};
+
 // FEATURE 3: Analysis Results Display
-const BetAnalysisResults = ({ 
-  analysis, 
-  onAnalyzeAnother 
+const BetAnalysisResults = ({
+  analysis,
+  onAnalyzeAnother
 }: {
   analysis: BetAnalysis;
   onAnalyzeAnother: () => void;
@@ -1257,28 +1548,19 @@ const BetAnalysisResults = ({
     }
   };
 
-  const getRecommendationColors = (recommendation: string) => {
-    switch(recommendation) {
-      case 'strong_play': return { backgroundColor: '#059669', color: '#ecfdf5', icon: '🔥' }; // bg-lime-600 text-lime-100
-      case 'lean': return { backgroundColor: '#0284c7', color: '#e0f2fe', icon: '👍' }; // bg-sky-600 text-sky-100
-      case 'pass': return { backgroundColor: '#6b7280', color: '#f9fafb', icon: '⏸️' }; // bg-zinc-600 text-zinc-100
-      case 'fade': return { backgroundColor: '#dc2626', color: '#fef2f2', icon: '❌' }; // bg-rose-600 text-rose-100
-      default: return { backgroundColor: '#71717a', color: '#f4f4f5', icon: '❓' }; // bg-zinc-500 text-white
-    }
-  };
 
   const recommendationStyle = getRecommendationColors(analysis.recommendation);
 
   return (
     <div style={{ width: '100%', maxWidth: '672px', marginLeft: 'auto', marginRight: 'auto', padding: '24px', backgroundColor: 'rgba(39, 39, 42, 0.7)', backdropFilter: 'blur(4px)', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#f4f4f5', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <h2 style={{ fontSize: '30px', fontWeight: '700', marginBottom: '24px', color: '#38b2ac', textAlign: 'center' }}>Analysis Complete!</h2>
-      
+
       <div style={{ width: '100%', marginBottom: '24px' }}>
         <p style={{ color: '#d4d4d8', textAlign: 'center', fontSize: '18px', marginBottom: '8px' }}>Bet: <span style={{ fontWeight: '600', color: '#f4f4f5' }}>{analysis.betDescription}</span></p>
         <p style={{ color: '#a1a1aa', textAlign: 'center', fontSize: '14px', marginBottom: '16px' }}>Type: <span style={{ textTransform: 'capitalize' }}>{analysis.betType.replace('_', ' ')}</span></p>
-        
+
         <div style={{ width: '100%', backgroundColor: '#3f3f46', borderRadius: '9999px', height: '32px', overflow: 'hidden', position: 'relative', marginBottom: '16px' }}>
-          <div 
+          <div
             style={{ height: '100%', borderRadius: '9999px', transition: 'all 1s ease-out', backgroundColor: getConfidenceColor(analysis.confidence), width: `${analysis.winProbability}%` }}
           ></div>
           <span style={{ position: 'absolute', top: '0', right: '0', bottom: '0', left: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f4f4f5', fontWeight: '700', fontSize: '20px' }}>
@@ -1330,15 +1612,15 @@ const BetAnalysisResults = ({
 };
 
 // Helper component for weight sliders
-const WeightSlider = ({ 
-  label, 
-  value, 
-  onChange, 
-  color 
-}: { 
-  label: string; 
-  value: number; 
-  onChange: (value: number) => void; 
+const WeightSlider = ({
+  label,
+  value,
+  onChange,
+  color
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
   color: string;
 }) => (
   <div style={{ marginBottom: '16px' }}>
@@ -1366,10 +1648,10 @@ const WeightSlider = ({
 );
 
 // FEATURE 4: Creator Algorithm Settings
-const CreatorSettings = ({ 
-  algorithm, 
-  onSave, 
-  analysisLogs 
+const CreatorSettings = ({
+  algorithm,
+  onSave,
+  analysisLogs
 }: {
   algorithm: CreatorAlgorithm;
   onSave: (algorithm: CreatorAlgorithm) => void;
@@ -1413,7 +1695,7 @@ const CreatorSettings = ({
     };
     onSave(algorithmToSave);
     setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000); 
+    setTimeout(() => setSaveSuccess(false), 3000);
   }, [tempAlgorithm, onSave, normalizeWeights]);
 
   const handleExport = useCallback(() => {
@@ -1421,7 +1703,7 @@ const CreatorSettings = ({
     const downloadAnchorNode = document.createElement('a');
     downloadAnchorNode.setAttribute("href", dataStr);
     downloadAnchorNode.setAttribute("download", "betbot_algorithm_settings.json");
-    document.body.appendChild(downloadAnchorNode); 
+    document.body.appendChild(downloadAnchorNode);
     downloadAnchorNode.click();
     downloadAnchorNode.remove();
   }, [algorithm]);
@@ -1433,7 +1715,7 @@ const CreatorSettings = ({
     setPreviewLoading(true);
     try {
       // Use a fixed bet for consistent preview
-      const mockBet = "Lakers -7.5 vs Warriors tonight"; 
+      const mockBet = "Lakers -7.5 vs Warriors tonight";
       const analysis = await analyzeBet(mockBet, tempAlgorithm);
       setPreviewAnalysis(analysis);
     } catch (error) {
@@ -1513,7 +1795,7 @@ const CreatorSettings = ({
         {activeTab === 'branding' && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', rowGap: '24px' }}>
             <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#38b2ac', marginBottom: '16px' }}>Response Customization</h3>
-            
+
             <div>
               <label htmlFor="responseTone" style={{ display: 'block', color: '#e4e4e7', fontSize: '14px', fontWeight: '700', marginBottom: '8px' }}>Response Tone:</label>
               <select
@@ -1683,7 +1965,7 @@ const CreatorSettings = ({
 // Test function to validate API keys
 async function validateAPIKeys() {
   console.log('🔑 Validating API Keys...');
-  
+
   // Test The Odds API
   if (PRODUCTION_KEYS.theOdds) {
     try {
@@ -1695,7 +1977,7 @@ async function validateAPIKeys() {
   } else {
     console.log(`❌ The Odds API: KEY MISSING`);
   }
-  
+
   // Test OpenAI API
   if (PRODUCTION_KEYS.openai) {
     try {
@@ -1731,7 +2013,7 @@ async function validateAPIKeys() {
 // 3. ENHANCE the testAPIIntegrations function:
 async function testAPIIntegrations() {
   console.log('🧪 Testing API Integrations...');
-  
+
   // Test 1: The Odds API
   try {
     const oddsTest = await fetchProductionOdds("Lakers vs Warriors");
@@ -1742,7 +2024,7 @@ async function testAPIIntegrations() {
   } catch (error) {
     console.log('❌ Odds API Test Failed:', error);
   }
-  
+
   // Test 2: Sportradar API
   try {
     const statsTest = await fetchProductionStats("LeBron James over 25 points");
@@ -1755,7 +2037,7 @@ async function testAPIIntegrations() {
   } catch (error) {
     console.log('❌ Sportradar Test Failed:', error);
   }
-  
+
   // Test 3: AI Parsing
   try {
     const parseTest = await aiPoweredBetParsing("Lakers vs Warriors -7.5");
@@ -1764,7 +2046,7 @@ async function testAPIIntegrations() {
   } catch (error) {
     console.log('❌ AI Parsing Test Failed:', error);
   }
-  
+
   // Test 4: Full Integration Test
   try {
     console.log('🔄 Running Full Integration Test...');
@@ -1799,7 +2081,7 @@ export default function App() {
 
   const [creatorAlgorithm, setCreatorAlgorithm] = useState<CreatorAlgorithm>(() => ({
     straightBetWeights: {
-      teamOffense: 0.2, teamDefense: 0.2, headToHead: 0.15, 
+      teamOffense: 0.2, teamDefense: 0.2, headToHead: 0.15,
       homeAway: 0.15, injuries: 0.2, restDays: 0.1
     },
     playerPropWeights: {
@@ -1809,7 +2091,7 @@ export default function App() {
     responseTone: 'hype',
     confidenceThreshold: 78,
     signaturePhrase: 'Get that bag!',
-    brandColor: '#0EA5E9', 
+    brandColor: '#0EA5E9',
   }));
 
   const [analysisLogs, setAnalysisLogs] = useState<AnalysisLog[]>([]);
@@ -1852,7 +2134,7 @@ export default function App() {
         } catch (authError) {
           console.error('Whop access check failed, defaulting to member role:', authError);
           // If Whop access check fails, default to 'customer' level access
-          setAccessLevel('customer'); 
+          setAccessLevel('customer');
           setUserRole('member');
           setError(handleApiError(authError, 'Whop Authentication (Defaulting to Member)'));
         }
@@ -1898,7 +2180,7 @@ export default function App() {
         } else {
           console.log('No existing algorithm found for user. Using default.');
         }
-        
+
         const logsCollectionRef = collection(db, `artifacts/${artifactAppId}/users/${userId}/analysisLogs`);
         const logsQuery = query(
           logsCollectionRef,
@@ -1907,7 +2189,7 @@ export default function App() {
         const logsSnapshot = await getDocs(logsQuery);
         const logs = logsSnapshot.docs
             .map(doc => ({ id: doc.id, ...doc.data() as AnalysisLog }))
-            .sort((a, b) => b.timestamp - a.timestamp); 
+            .sort((a, b) => b.timestamp - a.timestamp);
         setAnalysisLogs(logs);
         console.log('Analysis logs loaded from Firebase.');
       } catch (err) {
@@ -1915,13 +2197,13 @@ export default function App() {
         setError(handleApiError(err, 'Firebase Data Load'));
       }
     };
-    
+
     // Ensure Firebase is initialized and auth state is ready before trying to load user data
     // No longer blocking on accessLevel for data loading, as all roles can load data
     if (currentFirebaseUser) {
       loadUserData();
     }
-  }, [currentFirebaseUser]); 
+  }, [currentFirebaseUser]);
 
   const handleSaveAlgorithm = useCallback(async (newAlgorithm: CreatorAlgorithm) => {
     if (!db || !currentFirebaseUser) {
@@ -1937,7 +2219,7 @@ export default function App() {
         updatedAt: new Date().toISOString(),
         userId: userId
       });
-      
+
       setCreatorAlgorithm(newAlgorithm);
       console.log('Algorithm saved to Firebase');
     } catch (err) {
@@ -1950,7 +2232,7 @@ export default function App() {
     // Removed payment restriction: if (accessLevel === 'no_access') { setError('You need to subscribe to use this feature.'); return; }
     setIsLoading(true);
     setError(null);
-    setAnalysisResults(null); 
+    setAnalysisResults(null);
 
     if (!db || !currentFirebaseUser) {
       setError('Firebase not initialized or user not logged in.');
@@ -1964,7 +2246,7 @@ export default function App() {
 
     try {
       const analysis = await analyzeBet(betDescription, creatorAlgorithm);
-      
+
       const logDocRef = await addDoc(collection(db, `artifacts/${artifactAppId}/users/${userId}/analysisLogs`), {
         betDescription: analysis.betDescription,
         winProbability: analysis.winProbability,
@@ -1972,7 +2254,7 @@ export default function App() {
         timestamp: analysis.timestamp,
         userId: userId
       });
-      
+
       setAnalysisResults(analysis);
       setAnalysisLogs(prevLogs => {
         const newLog: AnalysisLog = {
@@ -2048,38 +2330,38 @@ export default function App() {
           .main-title {
             font-size: 36px !important;
           }
-          
+
           .bet-form-container {
             margin: 0 8px !important;
             padding: 16px !important;
           }
         }
-        
+
         @media (max-width: 480px) {
           .main-title {
             font-size: 28px !important;
           }
-          
+
           .subtitle {
             font-size: 16px !important;
           }
-          
+
           .user-info {
             font-size: 12px !important;
             line-height: 1.4 !important;
           }
-          
+
           .nav-button {
             font-size: 16px !important;
             padding-left: 16px !important;
             padding-right: 16px !important;
           }
-          
+
           .bet-textarea {
             font-size: 16px !important;
             padding: 12px !important;
           }
-          
+
           .submit-button {
             font-size: 14px !important;
           }
@@ -2137,10 +2419,10 @@ export default function App() {
         )}
 
         {userRole === 'creator' && appView === 'creator_settings' && (
-          <CreatorSettings 
-            algorithm={creatorAlgorithm} 
-            onSave={handleSaveAlgorithm} 
-            analysisLogs={analysisLogs} 
+          <CreatorSettings
+            algorithm={creatorAlgorithm}
+            onSave={handleSaveAlgorithm}
+            analysisLogs={analysisLogs}
           />
         )}
       </main>
