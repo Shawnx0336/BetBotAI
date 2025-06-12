@@ -151,56 +151,6 @@ const initializeFirebase = () => {
 
 
 // =================================================================================================
-// UTILITY FUNCTIONS & PRODUCTION SPORTS API INTEGRATION
-// =================================================================================================
-
-const handleApiError = (error: any, context: string): string => {
-  if (error instanceof Error) {
-    if (error.message.includes('rate limit') || error.message.includes('429')) {
-      return `⏳ ${context} is temporarily busy. Please try again in a moment.`;
-    }
-    if (error.message.includes('unauthorized') || error.message.includes('401')) {
-      return `🔐 ${context} access denied. Please check your API key or subscription.`;
-    }
-    if (error.message.includes('openai')) {
-      return `🤖 AI analysis temporarily unavailable. Using fallback analysis.`;
-    }
-    if (error.message.includes('Failed to fetch') || error.message.includes('network')) {
-      return `⚠️ Connection issue for ${context}. Please check your internet and try again.`;
-    }
-    if (error.message.includes('not found') || error.message.includes('404')) {
-      return `⚠️ Data for ${context} not found. The game/player might not be active or recognizable.`;
-    }
-  }
-  
-  console.error(`${context} error:`, error);
-  return `⚠️ ${context} encountered an issue. Our team has been notified.`;
-};
-
-const cache = new Map();
-const CACHE_DURATIONS = {
-  odds: 2 * 60 * 1000,      // 2 minutes
-  stats: 10 * 60 * 1000,    // 10 minutes
-  ai_parsing: 60 * 60 * 1000 // 1 hour
-};
-
-const getCachedData = (key: string) => {
-  const cached = cache.get(key);
-  if (cached && Date.now() - cached.timestamp < cached.ttl) {
-    return cached.data;
-  }
-  return null;
-};
-
-const setCachedData = (key: string, data: any, type: 'odds' | 'stats' | 'ai_parsing') => {
-  cache.set(key, { 
-    data, 
-    timestamp: Date.now(),
-    ttl: CACHE_DURATIONS[type]
-  });
-};
-
-// =================================================================================================
 // PRODUCTION API HIERARCHY - NO MOCK DATA ALLOWED
 // =================================================================================================
 
