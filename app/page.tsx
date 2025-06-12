@@ -151,30 +151,6 @@ const initializeFirebase = () => {
   }
 };
 
-// =================================================================================================
-// PRODUCTION API HIERARCHY - NO MOCK DATA ALLOWED
-// =================================================================================================
-
-// FIXED ENDPOINTS:
-const PRODUCTION_API_ENDPOINTS = {
-  theOddsAPI: 'https://api.the-odds-api.com/v4',
-  // Sportradar endpoints are now proxied. These are no longer directly used for fetch calls.
-  // The actual proxy endpoint will be '/api/sportradar-proxy'
-  sportradar: {
-    nba: typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SPORTRADAR_NBA_ENDPOINT : '',
-    nfl: typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SPORTRADAR_NFL_ENDPOINT : '',
-    mlb: typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SPORTRADAR_MLB_ENDPOINT : '',
-    nhl: typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SPORTRADAR_NHL_ENDPOINT : '',
-  },
-  openai: 'https://api.openai.com/v1/chat/completions'
-};
-
-// FIXED KEYS:
-const PRODUCTION_KEYS = {
-  theOdds: typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SPORTS_API_KEY : '',
-  sportradar: typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SPORTRADAR_API_KEY : '',
-  openai: typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_OPENAI_API_KEY : '',
-};
 
 // =================================================================================================
 // MULTI-SPORT CONFIGURATION
