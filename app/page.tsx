@@ -84,13 +84,8 @@ const handleTypedError = (error, context) => {
 
 const PRODUCTION_API_ENDPOINTS = {
   theOddsAPI: 'https://api.the-odds-api.com/v4',
-  openai: 'https://api.openai.com/v1/chat/completions',
-  sportradar: {
-    mlb: 'https://api.sportradar.com/mlb/trial/v7/en/us',
-    nba: 'https://api.sportradar.com/nba/trial/v8/en/us',
-    nfl: 'https://api.sportradar.com/nfl/trial/v7/en/us',
-    nhl: 'https://api.sportradar.com/nhl/trial/v7/en/us',
-  }
+  openai: 'https://api.openai.com/v1/chat/completions'
+// Sportradar now uses proxy - no direct endpoints needed
 };
 
 const PRODUCTION_KEYS = {
@@ -294,7 +289,7 @@ interface AnalysisLog {
 }
 
 type UserRole = 'creator' | 'member';
-type AppView = 'bet_analysis' | 'creator_settings' | 'player_projections' | 'game_projections' | 'top_bets' | 'trends';
+type AppView = 'bet_analysis' | 'creator_settings';
 type AccessLevel = 'admin' | 'customer' | 'no_access';
 
 // =================================================================================================
@@ -2066,7 +2061,6 @@ const trackAnalysisPerformance = async (betDescription, startTime) => {
 
 // REQUIRED HELPER FUNCTION
 function generateIntelligentFallback(betDescription, errorMessage) {
-  // Parse basic info from bet description
   const isPlayerProp = /\b(over|under)\b/i.test(betDescription) && /\b\d+\.?\d*\b/.test(betDescription);
   const isTeamBet = /\bvs\b|\b@\b|\b-\d+\.?\d*\b/i.test(betDescription);
   
@@ -2471,7 +2465,7 @@ const BetAnalysisForm = ({
   }, [betInput]);
 
   return (
-    <div className="bet-form-container" style={{ width: '100%', maxWidth: '672px', marginLeft: 'auto', marginRight: 'auto', padding: '24px', background: 'linear-gradient(145deg, #1e293b 0%, #334155 100%)', backdropFilter: 'blur(4px)', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)', border: '1px solid rgba(14, 165, 233, 0.1)', color: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div className="bet-form-container" style={{ width: '100%', maxWidth: '672px', marginLeft: 'auto', marginRight: 'auto', padding: '24px', background: 'linear-gradient(145deg, #1e293b 0%, #334155 100%)', backdropFilter: 'blur(4px)', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <h2 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '16px', color: '#0ea5e9' }}>Analyze Your Bet</h2>
       <form onSubmit={async (e) => { e.preventDefault(); if (betInput.trim() === '' || betInput.length > 280) return; await onSubmit(betInput); }} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <textarea
@@ -2485,7 +2479,7 @@ const BetAnalysisForm = ({
           disabled={isLoading}
         ></textarea>
         {aiSuggestions.length > 0 && betInput.length > 0 && (
-          <div style={{ background: 'linear-gradient(145deg, #1e293b 0%, #334155 100%)', borderRadius: '8px', padding: '8px', marginBottom: '8px', border: '1px solid #64748b' }}>
+          <div style={{ backgroundColor: 'rgba(51, 65, 85, 0.8)', borderRadius: '8px', padding: '8px', marginBottom: '8px', border: '1px solid #64748b' }}>
             <p style={{ color: '#64748b', fontSize: '12px', marginBottom: '4px' }}>Suggestions:</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {aiSuggestions.map((suggestion, index) => (
@@ -2493,7 +2487,7 @@ const BetAnalysisForm = ({
                   key={index}
                   type="button"
                   onClick={() => { setBetInput(suggestion); setAiSuggestions([]); }}
-                  style={{ padding: '6px 12px', background: '#3b82f6', color: '#f8fafc', borderRadius: '9999px', fontSize: '14px', border: 'none', cursor: 'pointer', transition: 'background-color 0.2s ease' }}
+                  style={{ padding: '6px 12px', backgroundColor: '#3b82f6', color: '#f8fafc', borderRadius: '9999px', fontSize: '14px', border: 'none', cursor: 'pointer', transition: 'background-color 0.2s ease' }}
                 >
                   {suggestion}
                 </button>
@@ -2504,7 +2498,7 @@ const BetAnalysisForm = ({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px', color: '#64748b' }}>
           <span>{betInput.length}/280 characters</span>
           {detectedBetType && (
-            <span style={{ textTransform: 'capitalize', paddingLeft: '12px', paddingRight: '12px', paddingTop: '4px', paddingBottom: '4px', backgroundColor: '#3b82f6', borderRadius: '9999px', fontSize: '12px', fontWeight: '600' }}>
+            <span style={{ textTransform: 'capitalize', paddingLeft: '12px', paddingRight: '12px', paddingTop: '4px', paddingBottom: '4px', backgroundColor: '#3b82f6', borderRadius: '9999px', fontSize: '12px', fontWeight: '600', color: '#f8fafc' }}>
               Type: {detectedBetType.replace('_', ' ')}
             </span>
           )}
@@ -2533,10 +2527,10 @@ const BetAnalysisForm = ({
 const getRecommendationColors = (recommendation) => {
   switch(recommendation) {
     case 'strong_play': return { backgroundColor: '#059669', color: '#ecfdf5', icon: '🔥' }; // bg-lime-600 text-lime-100
-    case 'lean': return { backgroundColor: '#0284c7', color: '#e0f2fe', icon: '👍' }; // bg-sky-600 text-sky-100
-    case 'pass': return { backgroundColor: '#64748b', color: '#f8fafc', icon: '⏸️' }; // bg-zinc-600 text-zinc-100
+    case 'lean': return { backgroundColor: '#3b82f6', color: '#f8fafc', icon: '👍' }; // Using new blue-500
+    case 'pass': return { backgroundColor: '#64748b', color: '#f8fafc', icon: '⏸️' }; // Using new slate-500
     case 'fade': return { backgroundColor: '#dc2626', color: '#fef2f2', icon: '❌' }; // bg-rose-600 text-rose-100
-    default: return { backgroundColor: '#64748b', color: '#f8fafc', icon: '❓' }; // bg-zinc-500 text-white
+    default: return { backgroundColor: '#64748b', color: '#f8fafc', icon: '❓' }; // Using new slate-500
   }
 };
 
@@ -2550,7 +2544,7 @@ const BetAnalysisResults = ({
       case 'high': return '#84cc16'; // bg-lime-500
       case 'medium': return '#eab308'; // bg-yellow-500
       case 'low': return '#f43f5e'; // bg-rose-500
-      default: return '#64748b'; // bg-zinc-500
+      default: return '#64748b'; // bg-slate-500
     }
   };
 
@@ -2558,14 +2552,14 @@ const BetAnalysisResults = ({
   const recommendationStyle = getRecommendationColors(analysis.recommendation);
 
   return (
-    <div style={{ width: '100%', maxWidth: '672px', marginLeft: 'auto', marginRight: 'auto', padding: '24px', background: 'linear-gradient(145deg, #1e293b 0%, #334155 100%)', backdropFilter: 'blur(4px)', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)', border: '1px solid rgba(14, 165, 233, 0.1)', color: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div style={{ width: '100%', maxWidth: '672px', marginLeft: 'auto', marginRight: 'auto', padding: '24px', background: 'linear-gradient(145deg, #1e293b 0%, #334155 100%)', backdropFilter: 'blur(4px)', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <h2 style={{ fontSize: '30px', fontWeight: '700', marginBottom: '24px', color: '#0ea5e9', textAlign: 'center' }}>Analysis Complete!</h2>
 
       <div style={{ width: '100%', marginBottom: '24px' }}>
         <p style={{ color: '#cbd5e1', textAlign: 'center', fontSize: '18px', marginBottom: '8px' }}>Bet: <span style={{ fontWeight: '600', color: '#f8fafc' }}>{analysis.betDescription}</span></p>
         <p style={{ color: '#64748b', textAlign: 'center', fontSize: '14px', marginBottom: '16px' }}>Type: <span style={{ textTransform: 'capitalize' }}>{analysis.betType.replace('_', ' ')}</span></p>
 
-        <div style={{ width: '100%', background: '#334155', borderRadius: '9999px', height: '32px', overflow: 'hidden', position: 'relative', marginBottom: '16px' }}>
+        <div style={{ width: '100%', backgroundColor: '#334155', borderRadius: '9999px', height: '32px', overflow: 'hidden', position: 'relative', marginBottom: '16px' }}>
           <div
             style={{ height: '100%', borderRadius: '9999px', transition: 'all 1s ease-out', backgroundColor: getConfidenceColor(analysis.confidence), width: `${analysis.winProbability}%` }}
           ></div>
@@ -2575,13 +2569,13 @@ const BetAnalysisResults = ({
         </div>
 
         <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <span style={{ paddingLeft: '16px', paddingRight: '16px', paddingTop: '8px', paddingBottom: '8px', borderRadius: '9999px', fontSize: '14px', fontWeight: '700', backgroundColor: getConfidenceColor(analysis.confidence) }}>
+          <span style={{ paddingLeft: '16px', paddingRight: '16px', paddingTop: '8px', paddingBottom: '8px', borderRadius: '9999px', fontSize: '14px', fontWeight: '700', backgroundColor: getConfidenceColor(analysis.confidence), color: '#f8fafc' }}> {/* Added color #f8fafc here */}
             Confidence: {analysis.confidence.toUpperCase()}
           </span>
         </div>
 
         {analysis.keyFactors && analysis.keyFactors.length > 0 && (
-          <div style={{ marginBottom: '24px', background: 'rgba(51, 65, 85, 0.5)', padding: '16px', borderRadius: '8px', border: '1px solid #64748b' }}>
+          <div style={{ marginBottom: '24px', backgroundColor: 'rgba(51, 65, 85, 0.5)', padding: '16px', borderRadius: '8px', border: '1px solid #64748b' }}>
             <h3 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '12px', color: '#0ea5e9' }}>Key Factors:</h3>
             <ul style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
               {analysis.keyFactors.map((factor, index) => (
@@ -2596,22 +2590,22 @@ const BetAnalysisResults = ({
 
         {/* NEW: Add after the existing key factors section: */}
         {analysis.marketAnalysis && (
-          <div style={{ marginBottom: '24px', background: 'rgba(51, 65, 85, 0.5)', padding: '16px', borderRadius: '8px', border: '1px solid #64748b' }}>
+          <div style={{ marginBottom: '24px', backgroundColor: 'rgba(51, 65, 85, 0.5)', padding: '16px', borderRadius: '8px', border: '1px solid #64748b' }}>
             <h3 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '12px', color: '#0ea5e9' }}>Market Analysis:</h3>
             <p style={{ color: '#cbd5e1', fontSize: '16px', lineHeight: '1.6' }}>{analysis.marketAnalysis}</p>
           </div>
         )}
 
         {analysis.trendAnalysis && (
-          <div style={{ marginBottom: '24px', background: 'rgba(51, 65, 85, 0.5)', padding: '16px', borderRadius: '8px', border: '1px solid #64748b' }}>
+          <div style={{ marginBottom: '24px', backgroundColor: 'rgba(51, 65, 85, 0.5)', padding: '16px', borderRadius: '8px', border: '1px solid #64748b' }}>
             <h3 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '12px', color: '#0ea5e9' }}>Trend Analysis:</h3>
             <p style={{ color: '#cbd5e1', fontSize: '16px', lineHeight: '1.6' }}>{analysis.trendAnalysis}</p>
           </div>
         )}
 
         {analysis.riskFactors && analysis.riskFactors.length > 0 && (
-          <div style={{ marginBottom: '24px', background: 'rgba(127, 29, 29, 0.3)', padding: '16px', borderRadius: '8px', border: '1px solid #dc2626' }}>
-            <h3 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '12px', color: '#f87171' }}>Risk Factors:</h3>
+          <div style={{ marginBottom: '24px', backgroundColor: 'rgba(159, 18, 57, 0.3)', padding: '16px', borderRadius: '8px', border: '1px solid #ef4444' }}>
+            <h3 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '12px', color: '#ef4444' }}>Risk Factors:</h3>
             <ul style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
               {analysis.riskFactors.map((risk, index) => (
                 <li key={index} style={{ display: 'flex', alignItems: 'center', color: '#fca5a5', fontSize: '16px', marginBottom: index < analysis.riskFactors.length - 1 ? '8px' : '0' }}>
@@ -2624,13 +2618,13 @@ const BetAnalysisResults = ({
         )}
 
         {analysis.reasoning && (
-          <div style={{ marginBottom: '24px', background: 'rgba(51, 65, 85, 0.5)', padding: '16px', borderRadius: '8px', border: '1px solid #64748b' }}>
+          <div style={{ marginBottom: '24px', backgroundColor: 'rgba(51, 65, 85, 0.5)', padding: '16px', borderRadius: '8px', border: '1px solid #64748b' }}>
             <h3 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '12px', color: '#0ea5e9' }}>Analysis Reasoning:</h3>
             <p style={{ color: '#cbd5e1', fontSize: '16px', lineHeight: '1.6' }}>{analysis.reasoning}</p>
           </div>
         )}
 
-        <div style={{ marginBottom: '32px', position: 'relative', padding: '24px', background: '#334155', borderRadius: '12px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)', border: '1px solid #64748b' }}>
+        <div style={{ marginBottom: '32px', position: 'relative', padding: '24px', backgroundColor: '#334155', borderRadius: '12px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)', border: '1px solid #64748b' }}>
           <div style={{ position: 'absolute', top: '-12px', left: '24px', width: '0', height: '0', borderLeft: '10px solid transparent', borderRight: '10px solid transparent', borderBottom: '10px solid #334155' }}></div>
           <p style={{ color: '#f8fafc', fontSize: '18px', lineHeight: '1.625', fontStyle: 'italic' }} dangerouslySetInnerHTML={{ __html: analysis.creatorResponse }}></p>
           <div style={{ position: 'absolute', bottom: '-12px', right: '24px', width: '0', height: '0', borderLeft: '10px solid transparent', borderRight: '10px solid transparent', borderTop: '10px solid #334155' }}></div>
@@ -2721,7 +2715,7 @@ const WeightSlider = ({
             padding: '4px 8px',
             fontSize: '10px',
             backgroundColor: value === preset ? color : 'rgba(51, 65, 85, 0.5)',
-            color: value === preset ? '#000' : '#64748b',
+            color: value === preset ? '#f8fafc' : '#64748b',
             border: '1px solid #64748b',
             borderRadius: '4px',
             cursor: 'pointer',
@@ -2816,11 +2810,11 @@ const CreatorSettings = ({
   const displayPlayerPropWeights = useMemo(() => normalizeWeights(tempAlgorithm.playerPropWeights), [tempAlgorithm.playerPropWeights, normalizeWeights]);
 
   // Styles for active/inactive buttons (pure inline)
-  const buttonActiveStyle = { backgroundColor: '#3b82f6', color: '#f8fafc', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)' };
-  const buttonInactiveStyle = { backgroundColor: '#334155', color: '#cbd5e1' };
+  const buttonActiveStyle = { backgroundColor: '#3b82f6', color: '#f8fafc', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)' }; // Updated colors
+  const buttonInactiveStyle = { backgroundColor: '#334155', color: '#cbd5e1' }; // Updated colors
 
   return (
-    <div className="creator-settings-container" style={{ width: '100%', maxWidth: '896px', marginLeft: 'auto', marginRight: 'auto', padding: '24px', background: 'linear-gradient(145deg, #1e293b 0%, #334155 100%)', backdropFilter: 'blur(4px)', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)', border: '1px solid rgba(14, 165, 233, 0.1)', color: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div className="creator-settings-container" style={{ width: '100%', maxWidth: '896px', marginLeft: 'auto', marginRight: 'auto', padding: '24px', background: 'linear-gradient(145deg, #1e293b 0%, #334155 100%)', backdropFilter: 'blur(4px)', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <h2 className="settings-title" style={{ fontSize: '30px', fontWeight: '700', marginBottom: '24px', color: '#0ea5e9', textAlign: 'center' }}>Creator Algorithm Settings</h2>
 
       <div className="nav-tabs" style={{ display: 'flex', marginBottom: '32px', borderBottom: '1px solid #334155', width: '100%', justifyContent: 'center', flexWrap: 'wrap', gap: '8px' }}>
@@ -2888,11 +2882,11 @@ const CreatorSettings = ({
           <div className="settings-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', columnGap: '32px', rowGap: '16px' }}>
             <h3 className="section-title" style={{ fontSize: '20px', fontWeight: '600', color: '#0ea5e9', gridColumn: '1 / -1', marginBottom: '16px' }}>Straight Bet Weighting (Sum to 100%)</h3>
             <WeightSlider label="Team Offense" value={Math.round(displayStraightWeights.teamOffense)} onChange={(val) => handleWeightChange('straight', 'teamOffense', val)} color="#0ea5e9" />
-            <WeightSlider label="Team Defense" value={Math.round(displayStraightWeights.teamDefense)} onChange={(val) => handleWeightChange('straight', 'teamDefense', val)} color="#3b82f6" />
-            <WeightSlider label="Head-to-Head" value={Math.round(displayStraightWeights.headToHead)} onChange={(val) => handleWeightChange('straight', 'headToHead', val)} color="#10b981" /> {/* Assuming green-500 from general Tailwind */}
-            <WeightSlider label="Home/Away" value={Math.round(displayStraightWeights.homeAway)} onChange={(val) => handleWeightChange('straight', 'homeAway', val)} color="#8b5cf6" />
-            <WeightSlider label="Injuries" value={Math.round(displayStraightWeights.injuries)} onChange={(val) => handleWeightChange('straight', 'injuries', val)} color="#ef4444" />
-            <WeightSlider label="Rest Days" value={Math.round(displayStraightWeights.restDays)} onChange={(val) => handleWeightChange('straight', 'restDays', val)} color="#f59e0b" />
+            <WeightSlider label="Team Defense" value={Math.round(displayStraightWeights.teamDefense)} onChange={(val) => handleWeightChange('straight', 'teamDefense', val)} color="#6366f1" />
+            <WeightSlider label="Head-to-Head" value={Math.round(displayStraightWeights.headToHead)} onChange={(val) => handleWeightChange('straight', 'headToHead', val)} color="#22c55e" /> {/* Assuming green-500 from general Tailwind */}
+            <WeightSlider label="Home/Away" value={Math.round(displayStraightWeights.homeAway)} onChange={(val) => handleWeightChange('straight', 'homeAway', val)} color="#a855f7" />
+            <WeightSlider label="Injuries" value={Math.round(displayStraightWeights.injuries)} onChange={(val) => handleWeightChange('straight', 'injuries', val)} color="#f43f5e" />
+            <WeightSlider label="Rest Days" value={Math.round(displayStraightWeights.restDays)} onChange={(val) => handleWeightChange('straight', 'restDays', val)} color="#eab308" />
             <p style={{ gridColumn: '1 / -1', textAlign: 'center', fontSize: '14px', color: '#64748b', marginTop: '16px' }}>
               Total Weight: {Math.round(Object.values(displayStraightWeights).reduce((sum, val) => sum + val, 0))}%
             </p>
@@ -2903,11 +2897,11 @@ const CreatorSettings = ({
           <div className="settings-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', columnGap: '32px', rowGap: '16px' }}>
             <h3 className="section-title" style={{ fontSize: '20px', fontWeight: '600', color: '#0ea5e9', marginBottom: '16px' }}>Player Prop Weighting (Sum to 100%)</h3>
             <WeightSlider label="Season Average" value={Math.round(displayPlayerPropWeights.seasonAverage)} onChange={(val) => handleWeightChange('prop', 'seasonAverage', val)} color="#0ea5e9" />
-            <WeightSlider label="Recent Form" value={Math.round(displayPlayerPropWeights.recentForm)} onChange={(val) => handleWeightChange('prop', 'recentForm', val)} color="#3b82f6" />
-            <WeightSlider label="Matchup History" value={Math.round(displayPlayerPropWeights.matchupHistory)} onChange={(val) => handleWeightChange('prop', 'matchupHistory', val)} color="#10b981" />
-            <WeightSlider label="Usage Rate" value={Math.round(displayPlayerPropWeights.usage)} onChange={(val) => handleWeightChange('prop', 'usage', val)} color="#8b5cf6" />
-            <WeightSlider label="Minutes Played" value={Math.round(displayPlayerPropWeights.minutes)} onChange={(val) => handleWeightChange('prop', 'minutes', val)} color="#ef4444" />
-            <WeightSlider label="Opponent Defense" value={Math.round(displayPlayerPropWeights.opponentDefense)} onChange={(val) => handleWeightChange('prop', 'opponentDefense', val)} color="#f59e0b" />
+            <WeightSlider label="Recent Form" value={Math.round(displayPlayerPropWeights.recentForm)} onChange={(val) => handleWeightChange('prop', 'recentForm', val)} color="#6366f1" />
+            <WeightSlider label="Matchup History" value={Math.round(displayPlayerPropWeights.matchupHistory)} onChange={(val) => handleWeightChange('prop', 'matchupHistory', val)} color="#22c55e" />
+            <WeightSlider label="Usage Rate" value={Math.round(displayPlayerPropWeights.usage)} onChange={(val) => handleWeightChange('prop', 'usage', val)} color="#a855f7" />
+            <WeightSlider label="Minutes Played" value={Math.round(displayPlayerPropWeights.minutes)} onChange={(val) => handleWeightChange('prop', 'minutes', val)} color="#f43f5e" />
+            <WeightSlider label="Opponent Defense" value={Math.round(displayPlayerPropWeights.opponentDefense)} onChange={(val) => handleWeightChange('prop', 'opponentDefense', val)} color="#eab308" />
             <p style={{ gridColumn: '1 / -1', textAlign: 'center', fontSize: '14px', color: '#64748b', marginTop: '16px' }}>
               Total Weight: {Math.round(Object.values(displayPlayerPropWeights).reduce((sum, val) => sum + val, 0))}%
             </p>
@@ -3123,7 +3117,7 @@ Add 2-3 more examples of your actual analysis style..."
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#fff',
+                color: '#f8fafc',
                 fontWeight: 'bold',
                 fontSize: '14px'
               }}>
@@ -3150,7 +3144,7 @@ Add 2-3 more examples of your actual analysis style..."
                 </div>
               )}
               {previewAnalysis && (
-                <div style={{ background: '#334155', padding: '16px', borderRadius: '8px', border: '1px solid #64748b', position: 'relative', marginTop: '16px' }}>
+                <div style={{ backgroundColor: '#334155', padding: '16px', borderRadius: '8px', border: '1px solid #64748b', position: 'relative', marginTop: '16px' }}>
                   <p style={{ color: '#f8fafc', fontSize: '18px', fontStyle: 'italic', lineHeight: '1.625' }} dangerouslySetInnerHTML={{ __html: previewAnalysis.creatorResponse }}></p>
                 </div>
               )}
@@ -3169,7 +3163,7 @@ Add 2-3 more examples of your actual analysis style..."
         </button>
         <button
           onClick={handleExport}
-          style={{ paddingTop: '12px', paddingBottom: '12px', paddingLeft: '32px', paddingRight: '32px', backgroundColor: '#64748b', color: '#f8fafc', fontWeight: '700', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)', transition: 'all 0.2s ease-in-out' }}
+          style={{ paddingTop: '12px', paddingBottom: '12px', paddingLeft: '32px', paddingRight: '32px', background: 'linear-gradient(135deg, #64748b 0%, #334155 100%)', color: '#f8fafc', fontWeight: '700', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)', transition: 'all 0.2s ease-in-out' }}
         >
           Export Settings
         </button>
@@ -3180,7 +3174,7 @@ Add 2-3 more examples of your actual analysis style..."
         {analysisLogs.length === 0 ? (
           <p style={{ color: '#64748b', textAlign: 'center', paddingTop: '32px', paddingBottom: '32px' }}>No analysis logs yet. Start analyzing some bets!</p>
         ) : (
-          <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid rgba(14, 165, 233, 0.1)', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)' }}>
+          <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)' }}>
             <table style={{ minWidth: '100%', borderCollapse: 'collapse' }}>
               <thead style={{ backgroundColor: '#334155' }}>
                 <tr>
@@ -3198,7 +3192,7 @@ Add 2-3 more examples of your actual analysis style..."
                   </th>
                 </tr>
               </thead>
-              <tbody style={{ background: '#1e293b', borderTop: '1px solid #334155' /* Removed hover effect for pure inline */ }}>
+              <tbody style={{ backgroundColor: '#1e293b', borderTop: '1px solid #334155' /* Removed hover effect for pure inline */ }}>
                 {analysisLogs.slice(0, 10).map((log) => (
                   <tr key={log.id} style={{ borderBottom: '1px solid #334155' /* Removed hover effect for pure inline */ }}>
                     <td style={{ padding: '16px 24px', whiteSpace: 'nowrap', fontSize: '14px', color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '300px' }}>
@@ -3225,1230 +3219,6 @@ Add 2-3 more examples of your actual analysis style..."
     </div>
   );
 };
-
-// =================================================================================================
-// NEW COMPONENTS FOR PHASE 2-6
-// =================================================================================================
-
-const SideMenu = ({ activeView, onViewChange, userRole }) => {
-  const menuItems = [
-    { id: 'bet_analysis', label: 'Bet Analysis', icon: '🎯', role: 'both' },
-    { id: 'player_projections', label: 'Player Projections', icon: '👤', role: 'both' },
-    { id: 'game_projections', label: 'Game Projections', icon: '🏟️', role: 'both' },
-    { id: 'top_bets', label: 'Top Bets', icon: '⭐', role: 'both' },
-    { id: 'trends', label: 'Trends & Insights', icon: '📈', role: 'both' },
-    { id: 'creator_settings', label: 'Creator Settings', icon: '⚙️', role: 'creator' }
-  ];
-
-  const filteredItems = menuItems.filter(item => 
-    item.role === 'both' || item.role === userRole
-  );
-
-  return (
-    <div className="side-menu" style={{
-      width: '280px',
-      height: '100vh',
-      background: 'linear-gradient(180deg, #0f172a 0%, #1e293b 100%)',
-      borderRight: '1px solid #334155',
-      padding: '24px 0',
-      position: 'fixed',
-      left: 0,
-      top: 0,
-      zIndex: 1000,
-      overflowY: 'auto'
-    }}>
-      {/* Logo */}
-      <div style={{ padding: '0 24px', marginBottom: '32px' }}>
-        <h1 style={{ 
-          fontSize: '24px', 
-          fontWeight: '800', 
-          color: '#0ea5e9',
-          margin: 0,
-          fontFamily: 'system-ui, -apple-system, sans-serif', 
-          letterSpacing: '-0.025em'
-        }}>
-          BetBot AI
-        </h1>
-        <p style={{ 
-          fontSize: '12px', 
-          color: '#64748b', 
-          margin: '4px 0 0 0',
-          fontFamily: 'Inter, system-ui, sans-serif'
-        }}>
-          Professional Sports Analysis
-        </p>
-      </div>
-
-      {/* Menu Items */}
-      <nav>
-        {filteredItems.map(item => (
-          <button
-            key={item.id}
-            onClick={() => onViewChange(item.id)}
-            style={{
-              width: '100%',
-              padding: '16px 24px',
-              background: activeView === item.id ? 'rgba(14, 165, 233, 0.1)' : 'transparent',
-              border: 'none',
-              borderLeft: activeView === item.id ? '3px solid #0ea5e9' : '3px solid transparent',
-              color: activeView === item.id ? '#0ea5e9' : '#cbd5e1',
-              fontSize: '14px',
-              fontWeight: '500',
-              textAlign: 'left',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              fontFamily: 'Inter, system-ui, sans-serif'
-            }}
-          >
-            <span style={{ fontSize: '16px' }}>{item.icon}</span>
-            {item.label}
-          </button>
-        ))}
-      </nav>
-
-      {/* Pro Badge */}
-      <div style={{
-        margin: '32px 24px 0 24px',
-        padding: '16px',
-        background: 'linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%)',
-        borderRadius: '12px',
-        textAlign: 'center'
-      }}>
-        <p style={{ 
-          fontSize: '14px', 
-          fontWeight: '600', 
-          color: '#f8fafc', 
-          margin: '0 0 8px 0',
-          fontFamily: 'Inter, system-ui, sans-serif'
-        }}>
-          ⚡ AI-Powered
-        </p>
-        <p style={{ 
-          fontSize: '12px', 
-          color: 'rgba(248,250,252,0.8)', 
-          margin: 0,
-          fontFamily: 'Inter, system-ui, sans-serif'
-        }}>
-          Advanced Analytics
-        </p>
-      </div>
-    </div>
-  );
-};
-
-const PlayerProjections = () => {
-  const [selectedSport, setSelectedSport] = useState('nba');
-  const [playerData, setPlayerData] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  // Mock data that looks professional (replace with real API calls later)
-  const mockPlayers = {
-    nba: [
-      { name: 'LeBron James', team: 'LAL', points: 25.8, assists: 8.2, rebounds: 7.1, usage: 31.2, trend: 'up' },
-      { name: 'Stephen Curry', team: 'GSW', points: 29.3, assists: 6.1, rebounds: 4.9, usage: 32.8, trend: 'up' },
-      { name: 'Giannis Antetokounmpo', team: 'MIL', points: 31.1, assists: 5.7, rebounds: 11.2, usage: 35.1, trend: 'stable' },
-      { name: 'Jayson Tatum', team: 'BOS', points: 27.2, assists: 4.8, rebounds: 8.1, usage: 29.7, trend: 'down' }
-    ],
-    nfl: [
-      { name: 'Josh Allen', team: 'BUF', passYards: 289.3, touchdowns: 2.1, rushYards: 45.2, usage: 28.5, trend: 'up' },
-      { name: 'Patrick Mahomes', team: 'KC', passYards: 312.7, touchdowns: 2.4, rushYards: 22.1, usage: 31.2, trend: 'stable' }
-    ]
-  };
-
-  useEffect(() => {
-    setPlayerData(mockPlayers[selectedSport] || []);
-  }, [selectedSport]);
-
-  const getTrendIcon = (trend) => {
-    switch(trend) {
-      case 'up': return { icon: '📈', color: '#10b981' };
-      case 'down': return { icon: '📉', color: '#ef4444' };
-      default: return { icon: '➡️', color: '#64748b' };
-    }
-  };
-
-  return (
-    <div style={{
-      padding: '32px',
-      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-      minHeight: '100vh',
-      fontFamily: 'Inter, system-ui, sans-serif'
-    }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        {/* Header */}
-        <div style={{ marginBottom: '32px' }}>
-          <h1 className="projections-header" style={{ 
-            fontSize: '32px', 
-            fontWeight: '800', 
-            color: '#f8fafc', 
-            margin: '0 0 8px 0',
-            fontFamily: 'system-ui, -apple-system, sans-serif', 
-            letterSpacing: '-0.025em'
-          }}>
-            Player Projections
-          </h1>
-          <p style={{ 
-            fontSize: '16px', 
-            color: '#64748b', 
-            margin: 0,
-            fontFamily: 'Inter, system-ui, sans-serif'
-          }}>
-            AI-powered performance predictions and trend analysis
-          </p>
-        </div>
-
-        {/* Sport Selector */}
-        <div style={{ marginBottom: '24px' }}>
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            {Object.keys(mockPlayers).map(sport => (
-              <button
-                key={sport}
-                onClick={() => setSelectedSport(sport)}
-                style={{
-                  padding: '8px 16px',
-                  background: selectedSport === sport ? '#0ea5e9' : '#334155',
-                  color: selectedSport === sport ? '#f8fafc' : '#cbd5e1',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  textTransform: 'uppercase',
-                  fontFamily: 'Inter, system-ui, sans-serif'
-                }}
-              >
-                {sport}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Players Grid */}
-        <div className="projections-grid" style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: '20px'
-        }}>
-          {playerData.map((player, index) => {
-            const trendData = getTrendIcon(player.trend);
-            return (
-              <div
-                key={index}
-                style={{
-                  background: 'linear-gradient(145deg, #1e293b 0%, #334155 100%)',
-                  borderRadius: '16px',
-                  padding: '24px',
-                  border: '1px solid rgba(14, 165, 233, 0.1)',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                }}
-              >
-                {/* Player Header */}
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center',
-                  marginBottom: '16px'
-                }}>
-                  <div>
-                    <h3 style={{ 
-                      fontSize: '18px', 
-                      fontWeight: '700', 
-                      color: '#f8fafc', 
-                      margin: '0 0 4px 0',
-                      fontFamily: 'system-ui, -apple-system, sans-serif', 
-                      letterSpacing: '-0.015em'
-                    }}>
-                      {player.name}
-                    </h3>
-                    <p style={{ 
-                      fontSize: '14px', 
-                      color: '#0ea5e9', 
-                      margin: 0,
-                      fontWeight: '600',
-                      fontFamily: 'Inter, system-ui, sans-serif'
-                    }}>
-                      {player.team}
-                    </p>
-                  </div>
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '4px' 
-                  }}>
-                    <span>{trendData.icon}</span>
-                    <span style={{ 
-                      fontSize: '12px', 
-                      color: trendData.color,
-                      fontWeight: '600',
-                      fontFamily: 'Inter, system-ui, sans-serif'
-                    }}>
-                      TREND
-                    </span>
-                  </div>
-                </div>
-
-                {/* Stats Grid */}
-                <div className="stats-grid" style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: '12px'
-                }}>
-                  {selectedSport === 'nba' ? (
-                    <>
-                      <div style={{ textAlign: 'center' }}>
-                        <p className="stat-value" style={{ fontSize: '24px', fontWeight: '700', color: '#0ea5e9', margin: 0, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-                          {player.points}
-                        </p>
-                        <p style={{ fontSize: '12px', color: '#64748b', margin: 0, fontFamily: 'Inter, system-ui, sans-serif' }}>PPG</p>
-                      </div>
-                      <div style={{ textAlign: 'center' }}>
-                        <p className="stat-value" style={{ fontSize: '24px', fontWeight: '700', color: '#10b981', margin: 0, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-                          {player.assists}
-                        </p>
-                        <p style={{ fontSize: '12px', color: '#64748b', margin: 0, fontFamily: 'Inter, system-ui, sans-serif' }}>APG</p>
-                      </div>
-                      <div style={{ textAlign: 'center' }}>
-                        <p className="stat-value" style={{ fontSize: '24px', fontWeight: '700', color: '#f59e0b', margin: 0, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-                          {player.rebounds}
-                        </p>
-                        <p style={{ fontSize: '12px', color: '#64748b', margin: 0, fontFamily: 'Inter, system-ui, sans-serif' }}>RPG</p>
-                      </div>
-                      <div style={{ textAlign: 'center' }}>
-                        <p className="stat-value" style={{ fontSize: '24px', fontWeight: '700', color: '#8b5cf6', margin: 0, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-                          {player.usage}%
-                        </p>
-                        <p style={{ fontSize: '12px', color: '#64748b', margin: 0, fontFamily: 'Inter, system-ui, sans-serif' }}>USG</p>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div style={{ textAlign: 'center' }}>
-                        <p className="stat-value" style={{ fontSize: '24px', fontWeight: '700', color: '#0ea5e9', margin: 0, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-                          {player.passYards}
-                        </p>
-                        <p style={{ fontSize: '12px', color: '#64748b', margin: 0, fontFamily: 'Inter, system-ui, sans-serif' }}>PASS YDS</p>
-                      </div>
-                      <div style={{ textAlign: 'center' }}>
-                        <p className="stat-value" style={{ fontSize: '24px', fontWeight: '700', color: '#10b981', margin: 0, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-                          {player.touchdowns}
-                        </p>
-                        <p style={{ fontSize: '12px', color: '#64748b', margin: 0, fontFamily: 'Inter, system-ui, sans-serif' }}>TD</p>
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {/* Action Button */}
-                <button style={{
-                  width: '100%',
-                  marginTop: '16px',
-                  padding: '12px',
-                  background: 'linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%)',
-                  border: 'none',
-                  borderRadius: '8px',
-                  color: '#f8fafc',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  fontFamily: 'Inter, system-ui, sans-serif'
-                }}>
-                  View Full Analysis
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const GameProjections = () => {
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [games, setGames] = useState([]);
-
-  // Mock game data with Betalytics-style projections
-  const mockGames = [
-    {
-      id: 1,
-      homeTeam: 'Lakers',
-      awayTeam: 'Warriors',
-      homeScore: 112.5,
-      awayScore: 108.3,
-      total: 220.8,
-      spread: -4.2,
-      confidence: 'HIGH',
-      time: '7:30 PM',
-      factors: ['Home advantage', 'Rest edge', 'Pace matchup']
-    },
-    {
-      id: 2,
-      homeTeam: 'Celtics',
-      awayTeam: 'Heat',
-      homeScore: 105.1,
-      awayScore: 102.7,
-      total: 207.8,
-      spread: -2.4,
-      confidence: 'MEDIUM',
-      time: '8:00 PM',
-      factors: ['Defensive matchup', 'Injury concerns', 'B2B situation']
-    },
-    {
-      id: 3,
-      homeTeam: 'Nuggets',
-      awayTeam: 'Suns',
-      homeScore: 118.9,
-      awayScore: 114.2,
-      total: 233.1,
-      spread: -4.7,
-      confidence: 'HIGH',
-      time: '9:00 PM',
-      factors: ['Altitude advantage', 'Pace up', 'Offensive efficiency']
-    }
-  ];
-
-  useEffect(() => {
-    setGames(mockGames);
-  }, [selectedDate]);
-
-  const getConfidenceColor = (confidence) => {
-    switch(confidence) {
-      case 'HIGH': return '#10b981';
-      case 'MEDIUM': return '#f59e0b';
-      case 'LOW': return '#ef4444';
-      default: return '#64748b';
-    }
-  };
-
-  return (
-    <div style={{
-      padding: '32px',
-      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-      minHeight: '100vh',
-      fontFamily: 'Inter, system-ui, sans-serif'
-    }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        {/* Header */}
-        <div style={{ marginBottom: '32px' }}>
-          <h1 className="projections-header" style={{ 
-            fontSize: '32px', 
-            fontWeight: '800', 
-            color: '#f8fafc', 
-            margin: '0 0 8px 0',
-            fontFamily: 'system-ui, -apple-system, sans-serif', 
-            letterSpacing: '-0.025em'
-          }}>
-            Game Projections
-          </h1>
-          <p style={{ 
-            fontSize: '16px', 
-            color: '#64748b', 
-            margin: 0,
-            fontFamily: 'Inter, system-ui, sans-serif'
-          }}>
-            AI-powered score predictions and betting insights
-          </p>
-        </div>
-
-        {/* Date Selector */}
-        <div style={{ marginBottom: '24px' }}>
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            style={{
-              padding: '12px 16px',
-              background: '#334155',
-              border: '1px solid #0ea5e9',
-              borderRadius: '8px',
-              color: '#f8fafc',
-              fontSize: '14px',
-              fontFamily: 'Inter, system-ui, sans-serif'
-            }}
-          />
-        </div>
-
-        {/* Games List */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {games.map(game => (
-            <div
-              key={game.id}
-              className="game-projection"
-              style={{
-                background: 'linear-gradient(145deg, #1e293b 0%, #334155 100%)',
-                borderRadius: '16px',
-                padding: '24px',
-                border: '1px solid rgba(14, 165, 233, 0.1)',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-              }}
-            >
-              {/* Game Header */}
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '20px'
-              }}>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '16px'
-                }}>
-                  <h3 style={{
-                    fontSize: '20px',
-                    fontWeight: '700',
-                    color: '#f8fafc',
-                    margin: 0,
-                    fontFamily: 'system-ui, -apple-system, sans-serif', 
-                    letterSpacing: '-0.015em'
-                  }}>
-                    {game.awayTeam} @ {game.homeTeam}
-                  </h3>
-                  <span style={{
-                    padding: '4px 12px',
-                    background: getConfidenceColor(game.confidence),
-                    color: '#f8fafc',
-                    borderRadius: '20px',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    fontFamily: 'Inter, system-ui, sans-serif'
-                  }}>
-                    {game.confidence}
-                  </span>
-                </div>
-                <p style={{
-                  fontSize: '16px',
-                  color: '#64748b',
-                  margin: 0,
-                  fontWeight: '600',
-                  fontFamily: 'Inter, system-ui, sans-serif'
-                }}>
-                  {game.time}
-                </p>
-              </div>
-
-              {/* Projections Grid */}
-              <div className="projections-grid" style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                gap: '20px',
-                marginBottom: '20px'
-              }}>
-                {/* Projected Score */}
-                <div style={{
-                  background: 'rgba(14, 165, 233, 0.1)',
-                  borderRadius: '12px',
-                  padding: '16px',
-                  textAlign: 'center'
-                }}>
-                  <p style={{
-                    fontSize: '14px',
-                    color: '#64748b',
-                    margin: '0 0 8px 0',
-                    fontWeight: '600',
-                    fontFamily: 'Inter, system-ui, sans-serif'
-                  }}>
-                    PROJECTED SCORE
-                  </p>
-                  <p className="stat-value" style={{
-                    fontSize: '24px',
-                    fontWeight: '700',
-                    color: '#0ea5e9',
-                    margin: 0,
-                    fontFamily: 'system-ui, -apple-system, sans-serif'
-                  }}>
-                    {game.awayScore} - {game.homeScore}
-                  </p>
-                </div>
-
-                {/* Total */}
-                <div style={{
-                  background: 'rgba(16, 185, 129, 0.1)',
-                  borderRadius: '12px',
-                  padding: '16px',
-                  textAlign: 'center'
-                }}>
-                  <p style={{
-                    fontSize: '14px',
-                    color: '#64748b',
-                    margin: '0 0 8px 0',
-                    fontWeight: '600',
-                    fontFamily: 'Inter, system-ui, sans-serif'
-                  }}>
-                    TOTAL
-                  </p>
-                  <p className="stat-value" style={{
-                    fontSize: '24px',
-                    fontWeight: '700',
-                    color: '#10b981',
-                    margin: 0,
-                    fontFamily: 'system-ui, -apple-system, sans-serif'
-                  }}>
-                    {game.total}
-                  </p>
-                </div>
-
-                {/* Spread */}
-                <div style={{
-                  background: 'rgba(139, 92, 246, 0.1)',
-                  borderRadius: '12px',
-                  padding: '16px',
-                  textAlign: 'center'
-                }}>
-                  <p style={{
-                    fontSize: '14px',
-                    color: '#64748b',
-                    margin: '0 0 8px 0',
-                    fontWeight: '600',
-                    fontFamily: 'Inter, system-ui, sans-serif'
-                  }}>
-                    SPREAD
-                  </p>
-                  <p className="stat-value" style={{
-                    fontSize: '24px',
-                    fontWeight: '700',
-                    color: '#8b5cf6',
-                    margin: 0,
-                    fontFamily: 'system-ui, -apple-system, sans-serif'
-                  }}>
-                    {game.homeTeam} {game.spread > 0 ? '+' : ''}{game.spread}
-                  </p>
-                </div>
-              </div>
-
-              {/* Key Factors */}
-              <div>
-                <p style={{
-                  fontSize: '14px',
-                  color: '#64748b',
-                  margin: '0 0 8px 0',
-                  fontWeight: '600',
-                  fontFamily: 'Inter, system-ui, sans-serif'
-                }}>
-                  KEY FACTORS:
-                </p>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  {game.factors.map((factor, index) => (
-                    <span
-                      key={index}
-                      style={{
-                        padding: '4px 12px',
-                        background: '#334155',
-                        color: '#cbd5e1',
-                        borderRadius: '20px',
-                        fontSize: '12px',
-                        fontFamily: 'Inter, system-ui, sans-serif'
-                      }}
-                    >
-                      {factor}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const TopBets = () => {
-  const [timeframe, setTimeframe] = useState('today');
-  const [topBets, setTopBets] = useState([]);
-
-  const mockTopBets = [
-    {
-      id: 1,
-      bet: 'Lakers -4.5 vs Warriors',
-      rating: 5,
-      value: 'EXCELLENT',
-      confidence: 89,
-      reasoning: 'Lakers perfect home record, Warriors on B2B',
-      odds: '-110',
-      sport: 'NBA'
-    },
-    {
-      id: 2,
-      bet: 'LeBron James OVER 25.5 Points',
-      rating: 4,
-      value: 'GOOD',
-      confidence: 76,
-      reasoning: 'Hot shooting streak, favorable matchup',
-      odds: '-115',
-      sport: 'NBA'
-    },
-    {
-      id: 3,
-      bet: 'Chiefs vs Bills OVER 47.5',
-      rating: 4,
-      value: 'GOOD',
-      confidence: 82,
-      reasoning: 'High-powered offenses, dome game conditions',
-      odds: '-105',
-      sport: 'NFL'
-    }
-  ];
-
-  useEffect(() => {
-    setTopBets(mockTopBets);
-  }, [timeframe]);
-
-  const getStarRating = (rating) => '⭐'.repeat(rating) + '☆'.repeat(5 - rating);
-  const getValueColor = (value) => {
-    switch(value) {
-      case 'EXCELLENT': return '#10b981';
-      case 'GOOD': return '#0ea5e9';
-      case 'FAIR': return '#f59e0b';
-      default: return '#64748b';
-    }
-  };
-
-  return (
-    <div style={{
-      padding: '32px',
-      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-      minHeight: '100vh',
-      fontFamily: 'Inter, system-ui, sans-serif'
-    }}>
-      <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-        {/* Header */}
-        <div style={{ marginBottom: '32px' }}>
-          <h1 className="projections-header" style={{ 
-            fontSize: '32px', 
-            fontWeight: '800', 
-            color: '#f8fafc', 
-            margin: '0 0 8px 0',
-            fontFamily: 'system-ui, -apple-system, sans-serif', 
-            letterSpacing: '-0.025em'
-          }}>
-            🏆 Top Bets
-          </h1>
-          <p style={{ 
-            fontSize: '16px', 
-            color: '#64748b', 
-            margin: 0,
-            fontFamily: 'Inter, system-ui, sans-serif'
-          }}>
-            AI-curated highest value betting opportunities
-          </p>
-        </div>
-
-        {/* Timeframe Selector */}
-        <div style={{ marginBottom: '24px' }}>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            {['today', 'week', 'trending'].map(period => (
-              <button
-                key={period}
-                onClick={() => setTimeframe(period)}
-                style={{
-                  padding: '8px 16px',
-                  background: timeframe === period ? '#0ea5e9' : '#334155',
-                  color: timeframe === period ? '#f8fafc' : '#cbd5e1',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  textTransform: 'capitalize',
-                  fontFamily: 'Inter, system-ui, sans-serif'
-                }}
-              >
-                {period}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Top Bets List */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {topBets.map((bet, index) => (
-            <div
-              key={bet.id}
-              style={{
-                background: 'linear-gradient(145deg, #1e293b 0%, #334155 100%)',
-                borderRadius: '16px',
-                padding: '24px',
-                border: '1px solid rgba(14, 165, 233, 0.1)',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                position: 'relative'
-              }}
-            >
-              {/* Rank Badge */}
-              <div style={{
-                position: 'absolute',
-                top: '-8px',
-                left: '24px',
-                background: 'linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%)',
-                color: '#f8fafc',
-                borderRadius: '12px',
-                padding: '4px 12px',
-                fontSize: '12px',
-                fontWeight: '700',
-                fontFamily: 'Inter, system-ui, sans-serif'
-              }}>
-                #{index + 1}
-              </div>
-
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr auto',
-                gap: '20px',
-                alignItems: 'center'
-              }}>
-                {/* Bet Info */}
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                    <h3 style={{
-                      fontSize: '18px',
-                      fontWeight: '700',
-                      color: '#f8fafc',
-                      margin: 0,
-                      fontFamily: 'system-ui, -apple-system, sans-serif', 
-                      letterSpacing: '-0.015em'
-                    }}>
-                      {bet.bet}
-                    </h3>
-                    <span style={{
-                      padding: '2px 8px',
-                      background: '#334155',
-                      color: '#0ea5e9',
-                      borderRadius: '4px',
-                      fontSize: '10px',
-                      fontWeight: '600',
-                      fontFamily: 'Inter, system-ui, sans-serif'
-                    }}>
-                      {bet.sport}
-                    </span>
-                  </div>
-
-                  <p style={{
-                    fontSize: '14px',
-                    color: '#cbd5e1',
-                    margin: '0 0 12px 0',
-                    lineHeight: '1.5',
-                    fontFamily: 'Inter, system-ui, sans-serif'
-                  }}>
-                    {bet.reasoning}
-                  </p>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <div>
-                      <span style={{
-                        fontSize: '20px',
-                        marginRight: '8px'
-                      }}>
-                        {getStarRating(bet.rating)}
-                      </span>
-                      <span style={{
-                        fontSize: '12px',
-                        color: '#64748b',
-                        fontFamily: 'Inter, system-ui, sans-serif'
-                      }}>
-                        Rating
-                      </span>
-                    </div>
-                    <div>
-                      <span style={{
-                        fontSize: '16px',
-                        fontWeight: '700',
-                        color: getValueColor(bet.value),
-                        marginRight: '8px',
-                        fontFamily: 'system-ui, -apple-system, sans-serif'
-                      }}>
-                        {bet.value}
-                      </span>
-                      <span style={{
-                        fontSize: '12px',
-                        color: '#64748b',
-                        fontFamily: 'Inter, system-ui, sans-serif'
-                      }}>
-                        Value
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Stats & Action */}
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{
-                    background: 'rgba(14, 165, 233, 0.1)',
-                    borderRadius: '12px',
-                    padding: '16px',
-                    marginBottom: '12px'
-                  }}>
-                    <p className="stat-value" style={{
-                      fontSize: '24px',
-                      fontWeight: '700',
-                      color: '#0ea5e9',
-                      margin: '0 0 4px 0',
-                      fontFamily: 'system-ui, -apple-system, sans-serif'
-                    }}>
-                      {bet.confidence}%
-                    </p>
-                    <p style={{
-                      fontSize: '12px',
-                      color: '#64748b',
-                      margin: 0,
-                      fontFamily: 'Inter, system-ui, sans-serif'
-                    }}>
-                      CONFIDENCE
-                    </p>
-                  </div>
-                  <button style={{
-                    padding: '12px 24px',
-                    background: 'linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%)',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: '#f8fafc',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    width: '100%',
-                    fontFamily: 'Inter, system-ui, sans-serif'
-                  }}>
-                    Analyze Bet
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Performance Stats */}
-        <div style={{
-          marginTop: '32px',
-          background: 'linear-gradient(145deg, #1e293b 0%, #334155 100%)',
-          borderRadius: '16px',
-          padding: '24px',
-          border: '1px solid rgba(14, 165, 233, 0.1)'
-        }}>
-          <h3 style={{
-            fontSize: '20px',
-            fontWeight: '700',
-            color: '#f8fafc',
-            margin: '0 0 16px 0',
-            fontFamily: 'system-ui, -apple-system, sans-serif', 
-            letterSpacing: '-0.015em'
-          }}>
-            📊 Performance Metrics
-          </h3>
-          <div className="projections-grid" style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-            gap: '20px'
-          }}>
-            <div style={{ textAlign: 'center' }}>
-              <p className="stat-value" style={{ fontSize: '28px', fontWeight: '700', color: '#10b981', margin: 0, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-                73%
-              </p>
-              <p style={{ fontSize: '12px', color: '#64748b', margin: 0, fontFamily: 'Inter, system-ui, sans-serif' }}>WIN RATE</p>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <p className="stat-value" style={{ fontSize: '28px', fontWeight: '700', color: '#0ea5e9', margin: 0, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-                +$2,847
-              </p>
-              <p style={{ fontSize: '12px', color: '#64748b', margin: 0, fontFamily: 'Inter, system-ui, sans-serif' }}>PROFIT (30D)</p>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <p className="stat-value" style={{ fontSize: '28px', fontWeight: '700', color: '#f59e0b', margin: 0, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-                4.2⭐
-              </p>
-              <p style={{ fontSize: '12px', color: '#64748b', margin: 0, fontFamily: 'Inter, system-ui, sans-serif' }}>AVG RATING</p>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <p className="stat-value" style={{ fontSize: '28px', fontWeight: '700', color: '#8b5cf6', margin: 0, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-                156
-              </p>
-              <p style={{ fontSize: '12px', color: '#64748b', margin: 0, fontFamily: 'Inter, system-ui, sans-serif' }}>TOTAL BETS</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const TrendsInsights = () => {
-  const [selectedCategory, setSelectedCategory] = useState('market');
-
-  const trendCategories = {
-    market: [
-      {
-        title: 'Sharp Money Movement',
-        value: 'Lakers -4.5 → -6.5',
-        change: '+2.0',
-        impact: 'High',
-        description: 'Professional bettors heavily backing Lakers spread'
-      },
-      {
-        title: 'Public Betting %',
-        value: '78% on Warriors',
-        change: 'Fade Signal',
-        impact: 'Medium',
-        description: 'Heavy public action often indicates value on opposite side'
-      }
-    ],
-    player: [
-      {
-        title: 'Usage Rate Surge',
-        value: 'Tyrese Haliburton',
-        change: '+12.3%',
-        impact: 'High',
-        description: 'Increased offensive responsibility driving prop value'
-      },
-      {
-        title: 'Matchup Advantage',
-        value: 'LeBron vs Weak Defense',
-        change: 'Elite',
-        impact: 'High',
-        description: 'Historical dominance against bottom-tier defenses'
-      }
-    ],
-    team: [
-      {
-        title: 'Home Court Edge',
-        value: 'Nuggets Altitude',
-        change: '+8.2 PPG',
-        impact: 'High',
-        description: 'Visiting teams struggling with Denver altitude effects'
-      },
-      {
-        title: 'Rest Advantage',
-        value: 'Fresh vs Tired',
-        change: '68% ATS',
-        impact: 'Medium',
-        description: 'Teams with 2+ days rest vs back-to-back opponents'
-      }
-    ]
-  };
-
-  const getImpactColor = (impact) => {
-    switch(impact) {
-      case 'High': return '#ef4444';
-      case 'Medium': return '#f59e0b';
-      case 'Low': return '#10b981';
-      default: return '#64748b';
-    }
-  };
-
-  return (
-    <div style={{
-      padding: '32px',
-      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-      minHeight: '100vh',
-      fontFamily: 'Inter, system-ui, sans-serif'
-    }}>
-      <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-        {/* Header */}
-        <div style={{ marginBottom: '32px' }}>
-          <h1 className="projections-header" style={{ 
-            fontSize: '32px', 
-            fontWeight: '800', 
-            color: '#f8fafc', 
-            margin: '0 0 8px 0',
-            fontFamily: 'system-ui, -apple-system, sans-serif', 
-            letterSpacing: '-0.025em'
-          }}>
-            📈 Trends & Insights
-          </h1>
-          <p style={{ 
-            fontSize: '16px', 
-            color: '#64748b', 
-            margin: 0,
-            fontFamily: 'Inter, system-ui, sans-serif'
-          }}>
-            Real-time market intelligence and betting patterns
-          </p>
-        </div>
-
-        {/* Category Selector */}
-        <div style={{ marginBottom: '24px' }}>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            {Object.keys(trendCategories).map(category => (
-              <button
-                key={category}
-                onClick={() => setSelectedCategory(category)}
-                style={{
-                  padding: '8px 16px',
-                  background: selectedCategory === category ? '#0ea5e9' : '#334155',
-                  color: selectedCategory === category ? '#f8fafc' : '#cbd5e1',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  textTransform: 'capitalize',
-                  fontFamily: 'Inter, system-ui, sans-serif'
-                }}
-              >
-                {category} Trends
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Trends Grid */}
-        <div className="projections-grid" style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
-          gap: '20px',
-          marginBottom: '32px'
-        }}>
-          {trendCategories[selectedCategory].map((trend, index) => (
-            <div
-              key={index}
-              style={{
-                background: 'linear-gradient(145deg, #1e293b 0%, #334155 100%)',
-                borderRadius: '16px',
-                padding: '24px',
-                border: '1px solid rgba(14, 165, 233, 0.1)',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-              }}
-            >
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                marginBottom: '12px'
-              }}>
-                <h3 style={{
-                  fontSize: '18px',
-                  fontWeight: '700',
-                  color: '#f8fafc',
-                  margin: 0,
-                  fontFamily: 'system-ui, -apple-system, sans-serif', 
-                  letterSpacing: '-0.015em'
-                }}>
-                  {trend.title}
-                </h3>
-                <span style={{
-                  padding: '4px 8px',
-                  background: getImpactColor(trend.impact),
-                  color: '#f8fafc',
-                  borderRadius: '4px',
-                  fontSize: '10px',
-                  fontWeight: '600',
-                  fontFamily: 'Inter, system-ui, sans-serif'
-                }}>
-                  {trend.impact}
-                </span>
-              </div>
-
-              <div style={{ marginBottom: '12px' }}>
-                <p className="stat-value" style={{
-                  fontSize: '24px',
-                  fontWeight: '700',
-                  color: '#0ea5e9',
-                  margin: '0 0 4px 0',
-                  fontFamily: 'system-ui, -apple-system, sans-serif'
-                }}>
-                  {trend.value}
-                </p>
-                <p style={{
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: '#10b981',
-                  margin: 0,
-                  fontFamily: 'Inter, system-ui, sans-serif'
-                }}>
-                  {trend.change}
-                </p>
-              </div>
-
-              <p style={{
-                fontSize: '14px',
-                color: '#cbd5e1',
-                margin: 0,
-                lineHeight: '1.5',
-                fontFamily: 'Inter, system-ui, sans-serif'
-              }}>
-                {trend.description}
-              </p>
-            </div>
-          ))}
-        </div>
-
-        {/* Market Pulse */}
-        <div style={{
-          background: 'linear-gradient(145deg, #1e293b 0%, #334155 100%)',
-          borderRadius: '16px',
-          padding: '24px',
-          border: '1px solid rgba(14, 165, 233, 0.1)'
-        }}>
-          <h3 style={{
-            fontSize: '20px',
-            fontWeight: '700',
-            color: '#f8fafc',
-            margin: '0 0 16px 0',
-            fontFamily: 'system-ui, -apple-system, sans-serif', 
-            letterSpacing: '-0.015em'
-          }}>
-            🔄 Live Market Pulse
-          </h3>
-          <div className="projections-grid" style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: '20px'
-          }}>
-            <div style={{
-              background: 'rgba(14, 165, 233, 0.1)',
-              borderRadius: '12px',
-              padding: '16px',
-              textAlign: 'center'
-            }}>
-              <p className="stat-value" style={{ fontSize: '24px', fontWeight: '700', color: '#0ea5e9', margin: 0, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-                📊 Active
-              </p>
-              <p style={{ fontSize: '12px', color: '#64748b', margin: 0, fontFamily: 'Inter, system-ui, sans-serif' }}>MARKET STATUS</p>
-            </div>
-            <div style={{
-              background: 'rgba(16, 185, 129, 0.1)',
-              borderRadius: '12px',
-              padding: '16px',
-              textAlign: 'center'
-            }}>
-              <p className="stat-value" style={{ fontSize: '24px', fontWeight: '700', color: '#10b981', margin: 0, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-                23
-              </p>
-              <p style={{ fontSize: '12px', color: '#64748b', margin: 0, fontFamily: 'Inter, system-ui, sans-serif' }}>OPPORTUNITIES</p>
-            </div>
-            <div style={{
-              background: 'rgba(245, 158, 11, 0.1)',
-              borderRadius: '12px',
-              padding: '16px',
-              textAlign: 'center'
-            }}>
-              <p className="stat-value" style={{ fontSize: '24px', fontWeight: '700', color: '#f59e0b', margin: 0, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-                ⚡ High
-              </p>
-              <p style={{ fontSize: '12px', color: '#64748b', margin: 0, fontFamily: 'Inter, system-ui, sans-serif' }}>VOLATILITY</p>
-            </div>
-            <div style={{
-              background: 'rgba(139, 92, 246, 0.1)',
-              borderRadius: '12px',
-              padding: '16px',
-              textAlign: 'center'
-            }}>
-              <p className="stat-value" style={{ fontSize: '24px', fontWeight: '700', color: '#8b5cf6', margin: 0, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-                85%
-              </p>
-              <p style={{ fontSize: '12px', color: '#64748b', margin: 0, fontFamily: 'Inter, system-ui, sans-serif' }}>ACCURACY</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-
-// =================================================================================================
-// TESTING AND VALIDATION FUNCTIONS (KEPT FOR DEBUGGING)
-// =================================================================================================
 
 // Test function to validate API keys
 async function validateAPIKeys() {
@@ -4751,7 +3521,7 @@ async function comprehensiveSystemTest() {
   // OpenAI API Test
   try {
     if (PRODUCTION_KEYS.openai && PRODUCTION_KEYS.openai.length > 10) {
-      const testResponse = await fetchWithTimeout(PRODUCTION_API_ENDpoints.openai, {
+      const testResponse = await fetchWithTimeout(PRODUCTION_API_ENDPOINTS.openai, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${PRODUCTION_KEYS.openai}`,
@@ -4864,7 +3634,7 @@ export default function App() {
     responseTone: 'hype',
     confidenceThreshold: 78,
     signaturePhrase: 'Get that bag!',
-    brandColor: '#0ea5e9',
+    brandColor: '#0EA5E9',
   }));
 
   const [analysisLogs, setAnalysisLogs] = useState([]);
@@ -4881,17 +3651,10 @@ export default function App() {
     transition: 'all 0.2s ease-in-out',
     border: 'none',
     cursor: 'pointer',
-    backgroundColor: isActive ? '#3b82f6' : '#334155',
-    color: isActive ? '#f8fafc' : '#cbd5e1',
+    backgroundColor: isActive ? '#3b82f6' : '#334155', // Updated colors
+    color: isActive ? '#f8fafc' : '#cbd5e1', // Updated colors
     boxShadow: isActive ? '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)' : 'none',
   }), []);
-
-  const handleViewChange = useCallback((newView) => {
-    setAppView(newView);
-    setAnalysisResults(null);
-    setError(null);
-  }, []);
-
 
   useEffect(() => {
     initializeFirebase();
@@ -5098,9 +3861,9 @@ export default function App() {
 
   if (userRole === null || accessLevel === null) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#18181b', color: '#f4f4f5', fontFamily: 'Inter, sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: '40px', paddingBottom: '40px', paddingLeft: '16px', paddingRight: '16px' }}>
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', color: '#f8fafc', fontFamily: 'Inter, system-ui, sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: '40px', paddingBottom: '40px', paddingLeft: '16px', paddingRight: '16px' }}>
         <LoadingSpinner />
-        <p style={{ marginTop: '16px', fontSize: '18px', color: '#a1a1aa' }}>Loading user authentication...</p>
+        <p style={{ marginTop: '16px', fontSize: '18px', color: '#64748b' }}>Loading user authentication...</p>
       </div>
     );
   }
@@ -5108,7 +3871,7 @@ export default function App() {
   // Removed paywall check: if (accessLevel === 'no_access') { return <DynamicPaywall ... />;}
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#18181b', color: '#f4f4f5', fontFamily: 'Inter, sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: '40px', paddingBottom: '40px', paddingLeft: '16px', paddingRight: '16px' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', color: '#f8fafc', fontFamily: 'Inter, system-ui, sans-serif', fontWeight: '400', lineHeight: '1.6', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: '40px', paddingBottom: '40px', paddingLeft: '16px', paddingRight: '16px' }}>
       {/* Add the mobileResponsiveCSS style block */}
       <style jsx>{`
         @media (max-width: 768px) {
@@ -5237,11 +4000,11 @@ export default function App() {
       `}</style>
 
       <header style={{ marginBottom: '40px', width: '100%', maxWidth: '896px', textAlign: 'center', paddingLeft: '16px', paddingRight: '16px' }}> {/* Applied padding as per prompt */}
-        <h1 className="main-title" style={{ fontSize: '48px', fontWeight: '800', color: '#38b2ac', filter: 'drop-shadow(0 10px 8px rgba(0, 0, 0, 0.04)) drop-shadow(0 4px 3px rgba(0, 0, 0, 0.1))', marginBottom: '8px' }}>BetBot AI</h1>
-        <p className="subtitle" style={{ fontSize: '20px', color: '#d4d4d4', fontStyle: 'italic' }}>"Ask the Creator's Algorithm"</p>
-        <p className="user-info" style={{ fontSize: '14px', color: '#71717a', marginTop: '8px' }}>
-          You are currently a <span style={{ fontWeight: '600', color: '#38b2ac' }}>{userRole?.toUpperCase()}</span>.
-          <br/> Your User ID: <span style={{ fontFamily: 'monospace', color: '#a1a1aa', wordBreak: 'break-all' }}>{currentFirebaseUser?.uid || 'N/A'}</span>
+        <h1 className="main-title" style={{ fontFamily: 'system-ui, -apple-system, sans-serif', fontWeight: '800', letterSpacing: '-0.025em', fontSize: '48px', color: '#0ea5e9', filter: 'drop-shadow(0 10px 8px rgba(0, 0, 0, 0.04)) drop-shadow(0 4px 3px rgba(0, 0, 0, 0.1))', marginBottom: '8px' }}>BetBot AI</h1>
+        <p className="subtitle" style={{ fontSize: '20px', color: '#cbd5e1', fontStyle: 'italic' }}>"Ask the Creator's Algorithm"</p>
+        <p className="user-info" style={{ fontSize: '14px', color: '#64748b', marginTop: '8px' }}>
+          You are currently a <span style={{ fontWeight: '600', color: '#0ea5e9' }}>{userRole?.toUpperCase()}</span>.
+          <br/> Your User ID: <span style={{ fontFamily: 'monospace', color: '#64748b', wordBreak: 'break-all' }}>{currentFirebaseUser?.uid || 'N/A'}</span>
         </p>
       </header>
 
@@ -5265,12 +4028,12 @@ export default function App() {
           </div>
         ) : (
           <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-            <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#38b2ac' }}>Sports Bet Analysis</h2>
+            <h2 style={{ fontFamily: 'system-ui, -apple-system, sans-serif', fontWeight: '700', letterSpacing: '-0.015em', fontSize: '24px', color: '#0ea5e9' }}>Sports Bet Analysis</h2>
           </div>
         )}
 
         {error && (
-          <div style={{ backgroundColor: '#9f1239', color: '#f4f4f5', padding: '16px', borderRadius: '8px', marginBottom: '24px', width: '100%', maxWidth: '672px', marginLeft: 'auto', marginRight: 'auto', border: '1px solid #e11d48' }}>
+          <div style={{ backgroundColor: '#9f1239', color: '#f8fafc', padding: '16px', borderRadius: '8px', marginBottom: '24px', width: '100%', maxWidth: '672px', marginLeft: 'auto', marginRight: 'auto', border: '1px solid #ef4444' }}>
             <p style={{ fontWeight: '700' }}>Error:</p>
             <p>{error}</p>
           </div>
@@ -5295,7 +4058,7 @@ export default function App() {
         )}
       </main>
 
-      <footer style={{ marginTop: '40px', textAlign: 'center', color: '#71717a', fontSize: '14px' }}>
+      <footer style={{ marginTop: '40px', textAlign: 'center', color: '#64748b', fontSize: '14px' }}>
         &copy; {new Date().getFullYear()} BetBot AI. All rights reserved.
       </footer>
     </div>
