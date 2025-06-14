@@ -965,30 +965,30 @@ async function fetchSportradarPlayerStats(playerName, sport) {
   console.log(`🏆 Fetching Sportradar ${sport.toUpperCase()} player stats for: ${playerName}`);
 
   try {
-    // Construct API URL based on sport using correct endpoints from documentation
-    let apiUrl = '';
-    const apiKey = PRODUCTION_KEYS.sportradar;
+  // Construct proxy URL based on sport
+  let apiUrl = '';
+  // Proxy handles the API key
     
     switch(sport) {
-      case 'mlb':
-        // Use MLB League Leaders endpoint - this should have current player stats
-        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.mlb}/seasons/2024/REG/leaders/hitting.json?api_key=${apiKey}`;
-        break;
-      case 'nba':
-        // Use NBA League Leaders endpoint  
-        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.nba}/seasons/2023/REG/leaders.json?api_key=${apiKey}`;
-        break;
-      case 'nfl':
-        // Use NFL League Hierarchy to get team rosters, then find players
-        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.nfl}/seasons/2024/REG/teams/hierarchy.json?api_key=${apiKey}`;
-        break;
-      case 'nhl':
-        // Use NHL League Leaders for skaters
-        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.nhl}/seasons/2023/REG/leaders/skaters.json?api_key=${apiKey}`;
-        break;
-      default:
-        throw new Error(`Unsupported sport: ${sport}`);
-    }
+  case 'mlb':
+    // Use proxy for MLB League Leaders
+    apiUrl = `/api/sportradar-proxy?endpoint=mlb/seasons/2024/REG/leaders/hitting.json`;
+    break;
+  case 'nba':
+    // Use proxy for NBA League Leaders
+    apiUrl = `/api/sportradar-proxy?endpoint=nba/seasons/2023/REG/leaders.json`;
+    break;
+  case 'nfl':
+    // Use proxy for NFL League Hierarchy
+    apiUrl = `/api/sportradar-proxy?endpoint=nfl/seasons/2024/REG/teams/hierarchy.json`;
+    break;
+  case 'nhl':
+    // Use proxy for NHL League Leaders
+    apiUrl = `/api/sportradar-proxy?endpoint=nhl/seasons/2023/REG/leaders/skaters.json`;
+    break;
+  default:
+    throw new Error(`Unsupported sport: ${sport}`);
+}
 
     console.log(`🔗 Calling Sportradar: ${apiUrl.replace(apiKey, 'API_KEY_HIDDEN')}`);
     
@@ -1083,33 +1083,32 @@ async function fetchSportradarTeamStats(teams, sport) {
   if (cached) return cached;
 
   console.log(`🏆 Fetching Sportradar ${sport.toUpperCase()} team stats for: ${teams.join(' vs ')}`);
-  
-  if (!PRODUCTION_KEYS.sportradar) {
-    console.warn(`Sportradar API key not configured`);
-    return { error: `Sportradar API key not configured` };
-  }
 
-  try {
-    let apiUrl = '';
-    const apiKey = PRODUCTION_KEYS.sportradar;
+try {
+  let apiUrl = '';
+  // No API key needed - proxy handles it
     
     // Use hierarchy endpoints for all sports to get team data
     switch(sport) {
-      case 'mlb':
-        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.mlb}/seasons/2024/REG/teams/hierarchy.json?api_key=${apiKey}`;
-        break;
-      case 'nba':
-        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.nba}/seasons/2023/REG/teams/hierarchy.json?api_key=${apiKey}`;
-        break;
-      case 'nfl':
-        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.nfl}/seasons/2024/REG/teams/hierarchy.json?api_key=${apiKey}`;
-        break;
-      case 'nhl':
-        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.nhl}/seasons/2023/REG/teams/hierarchy.json?api_key=${apiKey}`;
-        break;
-      default:
-        throw new Error(`Unsupported sport: ${sport}`);
-    }
+  case 'mlb':
+    // Use proxy for MLB League Leaders
+    apiUrl = `/api/sportradar-proxy?endpoint=mlb/seasons/2024/REG/leaders/hitting.json`;
+    break;
+  case 'nba':
+    // Use proxy for NBA League Leaders
+    apiUrl = `/api/sportradar-proxy?endpoint=nba/seasons/2023/REG/leaders.json`;
+    break;
+  case 'nfl':
+    // Use proxy for NFL League Hierarchy
+    apiUrl = `/api/sportradar-proxy?endpoint=nfl/seasons/2024/REG/teams/hierarchy.json`;
+    break;
+  case 'nhl':
+    // Use proxy for NHL League Leaders
+    apiUrl = `/api/sportradar-proxy?endpoint=nhl/seasons/2023/REG/leaders/skaters.json`;
+    break;
+  default:
+    throw new Error(`Unsupported sport: ${sport}`);
+}
 
     console.log(`🔗 Calling Sportradar Teams: ${apiUrl.replace(apiKey, 'API_KEY_HIDDEN')}`);
     
@@ -3262,31 +3261,6 @@ async function validateAPIKeys() {
     console.log(`❌ OpenAI API: KEY MISSING`);
   }
 
-  // 5. Sportradar API Key Test
-  // NOTE: For true Sportradar key validation without a proxy, you'd need a specific public endpoint.
-  // This mock tests the *presence* of the key and logs its status.
-  // A more robust test would involve making a small, known-good request to a public Sportradar endpoint.
-  // For the purpose of this integration, we assume if the key is present, it's intended to be valid.
-  if (PRODUCTION_KEYS.sportradar) {
-    console.log(`✅ Sportradar API Key: PRESENT`);
-    // Ideally, a small test call could be made here to an accessible Sportradar endpoint
-    // For example:
-    // try {
-    //   const testUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.nba}/seasons/2023/REG/rankings.json?api_key=${PRODUCTION_KEYS.sportradar}`;
-    //   const response = await fetchWithTimeout(testUrl, {}, 5000); // Small timeout for quick check
-    //   if (response.ok) {
-    //     console.log(`✅ Sportradar API Connectivity: SUCCESS`);
-    //   } else {
-    //     console.log(`❌ Sportradar API Connectivity: FAILED (${response.status})`);
-    //   }
-    // } catch (e) {
-    //   console.log(`❌ Sportradar API Connectivity: ERROR`, handleTypedError(e, 'Sportradar Connectivity'));
-    // }
-  } else {
-    console.log(`❌ Sportradar API: KEY MISSING`);
-  }
-}
-
 // 3. ENHANCE the testAPIIntegrations function:
 async function testAPIIntegrations() {
   console.log('🧪 Testing API Integrations...');
@@ -3568,21 +3542,6 @@ async function comprehensiveSystemTest() {
   { 
     const errorMessage = handleTypedError(error, 'The Odds API Test'); // ERROR #6
     console.log(`❌ The Odds API test failed: ${errorMessage}`);
-    testResults.apiErrors++;
-  }
-
-  // Sportradar API Test (basic connectivity)
-  try {
-    if (PRODUCTION_KEYS.sportradar && PRODUCTION_KEYS.sportradar.length > 10) {
-      console.log('✅ Sportradar API key configured');
-      testResults.passedTests++;
-    } else {
-      throw new Error('Sportradar API key not configured');
-    }
-  } catch (error) // Fix: Type safety
-  { 
-    const errorMessage = handleTypedError(error, 'Sportradar API Test'); // ERROR #6
-    console.log(`❌ Sportradar API test failed: ${errorMessage}`);
     testResults.apiErrors++;
   }
 
