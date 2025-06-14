@@ -1573,7 +1573,7 @@ Return detailed factors that separate professional from casual analysis.`;
         body: JSON.stringify({
           model: 'gpt-4o-mini',
           messages: [{ role: 'user', content: prompt }],
-          max_tokens: 2000, // 🔍 DEEP FACTOR ANALYSIS
+          max_tokens: 1500, // 🔍 DEEP FACTOR ANALYSIS
           temperature: 0.4
         })
       });
@@ -1802,16 +1802,33 @@ INTELLIGENCE REQUIREMENTS:
 7. Factor in weather, injuries, rest, and situational spots
 8. Provide probabilistic reasoning for your confidence level
 
-⚠️ CRITICAL RULES FOR ANALYSIS:
-1. **STRICTLY ONLY ANALYZE THE SPECIFIED PLAYER/TEAMS.** If the bet is on Aaron Judge, *do not mention LeBron James, Tyrese Haliburton, Lakers, Warriors, etc.*
-2. **SPORT-SPECIFIC STATISTICS ONLY:**
-   - MLB players: Use home runs, RBIs, batting average, hits, strikeouts (NEVER points, usage rate, assists)
-   - NBA players: Use points, assists, rebounds, usage rate (NEVER home runs, RBIs, batting average)
-   - NFL players: Use touchdowns, yards, receptions (NEVER points from basketball or home runs)
-3. **VERIFY SPORT ALIGNMENT:** If analyzing Aaron Judge (MLB), statistics MUST be baseball-related. If you mention "points" or "usage rate" for a baseball player, you are WRONG.
-4. **USE ONLY THE PROVIDED DATA.** All statistics must come from the JSON objects provided below.
-5. **DO NOT HALLUCINATE OR SUBSTITUTE.** Every detail must trace back to the provided data.
-6. **FINAL CHECK:** Before responding, verify that ${cleanParsedBet.sport} statistics match the sport (MLB = home runs, NBA = points).
+⚠️ CRITICAL SPORT VALIDATION RULES - MUST FOLLOW EXACTLY:
+1. **SPORT-SPECIFIC DATA VALIDATION:**
+   - If analyzing Aaron Judge (MLB): ONLY use home runs, RBIs, batting average, hits, strikeouts
+   - If analyzing LeBron James (NBA): ONLY use points, assists, rebounds, usage rate
+   - NEVER mix sports statistics - if you mention "points" for Aaron Judge, you are COMPLETELY WRONG
+   
+2. **MANDATORY STAT VERIFICATION:**
+   - Before ANY statistic: Check if it matches the sport
+   - Aaron Judge = baseball stats ONLY (no points, no usage rate)
+   - LeBron James = basketball stats ONLY (no home runs, no batting average)
+   
+3. **DATA SOURCE VALIDATION:**
+   - All stats must come from the provided JSON data below
+   - If no real data available, clearly state "using derived statistics"
+   - NEVER substitute players (Aaron Judge ≠ Tyrese Haliburton)
+
+4. **CRITICAL FINAL CHECK:**
+   - Sport: ${cleanParsedBet.sport?.toUpperCase()}
+   - Player: ${cleanParsedBet.player}
+   - Verify ALL statistics match this exact sport and player
+   - If you mention wrong sport stats, RESTART your analysis
+
+❌ NEVER USE GENERIC TERMS:
+- Do NOT say "Team A" or "Team B" 
+- Do NOT use placeholder names
+- Use EXACT player/team names: ${cleanParsedBet.player}, ${cleanParsedBet.teams?.join(' vs ')}
+- If analyzing Aaron Judge, mention "Aaron Judge" specifically
 
 AVAILABLE DATA:
 ${JSON.stringify(odds, null, 2)}
@@ -1879,7 +1896,7 @@ RESPONSE FORMAT (use every token available for maximum depth):
 const result = JSON.parse(cleanedContent);
     
     // 3.3 Post-Analysis Validation: Check if analysis mentions invalid entities
-    const invalidEntities = ['team 5', 'lebron', 'lakers', 'warriors']; // Specific for 'Warriors' and 'LeBron'
+    const invalidEntities = ['team a', 'team b', 'team 1', 'team 2', 'generic team']; // Specific for 'Warriors' and 'LeBron'
     const analysisTextLower = JSON.stringify(result).toLowerCase();
     const normalizeText = (text) => text.toLowerCase().replace(/[^a-z0-9\s]/g, '');
 
@@ -1947,24 +1964,32 @@ Write the analysis for "${parsedBet.betDescription}" in this IDENTICAL style.`
     : `Write a ${algorithm.responseTone} professional betting analysis.`;
 
   // ULTRA-PREMIUM CREATOR RESPONSE (8,000 tokens - Engaging masterpiece)
-  const responsePrompt = `You are a world-class sports betting content creator with millions of followers. Create the most engaging, insightful, and valuable betting analysis ever written.
+  const responsePrompt = `Create a concise, actionable betting analysis in 150-300 words max.
 
-PREMIUM CONTENT REQUIREMENTS:
-- Write like you're the top analyst on ESPN/FS1
-- Include specific statistics and insights
-- Build excitement and confidence
-- Provide actionable intelligence
-- Use storytelling to make it memorable
-- Reference market dynamics and sharp vs public money
-- Include contrarian takes when appropriate
-- Make the reader feel like they have insider knowledge
+BET: ${allData.parsedBet.betDescription}
+PLAYER: ${allData.parsedBet.player || 'N/A'}
+SPORT: ${allData.parsedBet.sport?.toUpperCase() || 'N/A'}
+WIN PROBABILITY: ${analysis.winProbability}%
+CONFIDENCE: ${analysis.confidence.toUpperCase()}
 
-BET ANALYSIS TO PRESENT:
-${JSON.stringify(analysis, null, 2)}
+FORMAT EXACTLY LIKE THIS:
+🎯 **Quick Take:** [1-2 sentences on the bet]
 
-CREATOR STYLE: ${algorithm.customResponseStyle || 'Professional with personality'}
+**Key Factors:**
+- [Factor 1 with specific stat]
+- [Factor 2 with realistic context] 
+- [Factor 3 with actionable insight]
 
-Create a 500-800 word masterpiece that makes this analysis unforgettable. This should read like premium content worth paying for.`;
+**Bottom Line:** [Clear recommendation with confidence level]
+
+${algorithm.signaturePhrase || 'Get that bag!'}
+
+REQUIREMENTS:
+- Keep under 300 words total
+- Be specific and realistic with stats
+- Focus on actionable insights, not storytelling
+- Use ${algorithm.responseTone} tone
+- Include exact signature phrase at end`;
 
 
   try {
@@ -1977,7 +2002,7 @@ Create a 500-800 word masterpiece that makes this analysis unforgettable. This s
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [{ role: 'user', content: responsePrompt }],
-        max_tokens: 1000, // 🎯 PREMIUM CONTENT CREATION
+        max_tokens: 800, // 🎯 PREMIUM CONTENT CREATION
         temperature: 0.8 // High creativity for engaging content
       })
     });
