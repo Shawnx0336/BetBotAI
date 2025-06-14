@@ -85,13 +85,13 @@ const handleTypedError = (error, context) => {
 const PRODUCTION_API_ENDPOINTS = {
   theOddsAPI: 'https://api.the-odds-api.com/v4',
   openai: 'https://api.openai.com/v1/chat/completions',
-  sportradarProxy: '/api/sportradar-proxy' // Add the proxy endpoint 
+  sportradarProxy: '/api/sportradar-proxy' // Add the proxy endpoint
 };
 
 const PRODUCTION_KEYS = {
   theOdds: typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SPORTS_API_KEY : '',
   openai: typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_OPENAI_API_KEY : '',
-  sportradar: typeof process !== 'undefined' ? process.env.SPORTRADAR_API_KEY : '',
+  sportradar: typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SPORTRADAR_API_KEY : '',
 };
 
 // =================================================================================================
@@ -967,30 +967,29 @@ async function fetchSportradarPlayerStats(playerName, sport) {
   try {
     // Construct API URL based on sport using correct endpoints from documentation
     let apiUrl = '';
-    const apiKey = PRODUCTION_KEYS.sportradar;
     
     switch(sport) {
       case 'mlb':
         // Use MLB League Leaders endpoint - this should have current player stats
-        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.mlb}/seasons/2024/REG/leaders/hitting.json?api_key=${apiKey}`;
+        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradarProxy}?endpoint=mlb/trial/v7/seasons/2024/REG/leaders/hitting.json`;
         break;
       case 'nba':
         // Use NBA League Leaders endpoint  
-        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.nba}/seasons/2023/REG/leaders.json?api_key=${apiKey}`;
+        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradarProxy}?endpoint=nba/trial/v8/seasons/2023/REG/leaders.json`;
         break;
       case 'nfl':
         // Use NFL League Hierarchy to get team rosters, then find players
-        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.nfl}/seasons/2024/REG/teams/hierarchy.json?api_key=${apiKey}`;
+        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradarProxy}?endpoint=nfl/official/trial/v7/seasons/2024/REG/teams/hierarchy.json`;
         break;
       case 'nhl':
         // Use NHL League Leaders for skaters
-        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.nhl}/seasons/2023/REG/leaders/skaters.json?api_key=${apiKey}`;
+        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradarProxy}?endpoint=nhl/trial/v7/seasons/2023/REG/leaders/skaters.json`;
         break;
       default:
         throw new Error(`Unsupported sport: ${sport}`);
     }
 
-    console.log(`🔗 Calling Sportradar: ${apiUrl.replace(apiKey, 'API_KEY_HIDDEN')}`);
+    console.log(`🔗 Calling Sportradar: ${apiUrl}`);
     
     const response = await fetchWithTimeout(apiUrl, {
       headers: {
@@ -1006,7 +1005,7 @@ async function fetchSportradarPlayerStats(playerName, sport) {
       // Try alternative endpoint for some sports
       if (sport === 'mlb' && response.status === 404) {
         console.log(`🔄 Trying alternative MLB endpoint...`);
-        const altUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.mlb}/seasons/2024/REG/teams/hierarchy.json?api_key=${apiKey}`;
+        const altUrl = `${PRODUCTION_API_ENDPOINTS.sportradarProxy}?endpoint=mlb/trial/v7/seasons/2024/REG/teams/hierarchy.json`;
         const altResponse = await fetchWithTimeout(altUrl, {
           headers: {
             'Accept': 'application/json',
@@ -1091,27 +1090,26 @@ async function fetchSportradarTeamStats(teams, sport) {
 
   try {
     let apiUrl = '';
-    const apiKey = PRODUCTION_KEYS.sportradar;
     
     // Use hierarchy endpoints for all sports to get team data
     switch(sport) {
       case 'mlb':
-        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.mlb}/seasons/2024/REG/teams/hierarchy.json?api_key=${apiKey}`;
+        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradarProxy}?endpoint=mlb/trial/v7/seasons/2024/REG/teams/hierarchy.json`;
         break;
       case 'nba':
-        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.nba}/seasons/2023/REG/teams/hierarchy.json?api_key=${apiKey}`;
+        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradarProxy}?endpoint=nba/trial/v8/seasons/2023/REG/teams/hierarchy.json`;
         break;
       case 'nfl':
-        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.nfl}/seasons/2024/REG/teams/hierarchy.json?api_key=${apiKey}`;
+        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradarProxy}?endpoint=nfl/official/trial/v7/seasons/2024/REG/teams/hierarchy.json`;
         break;
       case 'nhl':
-        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.nhl}/seasons/2023/REG/teams/hierarchy.json?api_key=${apiKey}`;
+        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradarProxy}?endpoint=nhl/trial/v7/seasons/2023/REG/teams/hierarchy.json`;
         break;
       default:
         throw new Error(`Unsupported sport: ${sport}`);
     }
 
-    console.log(`🔗 Calling Sportradar Teams: ${apiUrl.replace(apiKey, 'API_KEY_HIDDEN')}`);
+    console.log(`🔗 Calling Sportradar Teams: ${apiUrl}`);
     
     const response = await fetchWithTimeout(apiUrl, {
       headers: {
