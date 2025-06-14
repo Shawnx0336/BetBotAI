@@ -963,11 +963,6 @@ async function fetchSportradarPlayerStats(playerName, sport) {
   if (cached) return cached;
 
   console.log(`🏆 Fetching Sportradar ${sport.toUpperCase()} player stats for: ${playerName}`);
-  
-  if (!PRODUCTION_KEYS.sportradar) {
-    console.warn(`Sportradar API key not configured`);
-    return { error: `Sportradar API key not configured` };
-  }
 
   try {
     // Construct API URL based on sport using correct endpoints from documentation
@@ -1459,9 +1454,8 @@ async function fetchProductionStats(betDescription) {
   // Ensure sportradar endpoint and API key are available for the detected sport
   const validSports = ['nba', 'nfl', 'mlb', 'nhl'];
 if (parsedBet.sport &&
-    validSports.includes(parsedBet.sport) && // Fix: Type safety
-    PRODUCTION_API_ENDPOINTS.sportradar[parsedBet.sport] &&
-    PRODUCTION_KEYS.sportradar) {
+    validSports.includes(parsedBet.sport)) {
+    // Sportradar now uses proxy - no endpoint check needed
     try {
       console.log(`🏆 Attempting Sportradar ${parsedBet.sport.toUpperCase()} API`);
 
@@ -1890,7 +1884,7 @@ RESPONSE FORMAT (use every token available for maximum depth):
 const result = JSON.parse(cleanedContent);
     
     // 3.3 Post-Analysis Validation: Check if analysis mentions invalid entities
-    const invalidEntities = ['team a', 'team b', 'team 1', 'team 2', 'generic team']; // Specific for 'Warriors' and 'LeBron'
+    const invalidEntities = ['team a', 'team b', 'red sox', 'yankee stadium']; // Specific for 'Warriors' and 'LeBron'
     const analysisTextLower = JSON.stringify(result).toLowerCase();
     const normalizeText = (text) => text.toLowerCase().replace(/[^a-z0-9\s]/g, '');
 
