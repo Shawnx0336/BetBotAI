@@ -1797,7 +1797,7 @@ INTELLIGENCE REQUIREMENTS:
 7. Factor in weather, injuries, rest, and situational spots
 8. Provide probabilistic reasoning for your confidence level
 
-⚠️ CRITICAL SPORT VALIDATION RULES - MUST FOLLOW EXACTLY:
+CRITICAL SPORT VALIDATION RULES - MUST FOLLOW EXACTLY:
 
 1. **EXACT PLAYER/SPORT MATCHING:**
    - Aaron Judge = MLB ONLY (home runs, RBIs, batting average, hits)
@@ -1815,11 +1815,18 @@ INTELLIGENCE REQUIREMENTS:
    - If bet says "vs Warriors" → mention Golden State Warriors throughout
    - NEVER substitute different teams in your analysis
    
-4. **VALIDATION CHECKLIST:**
+4. **NO HALLUCINATED DATA:**
+   - Do NOT make up specific pitcher information (handedness, stats, etc.)
+   - Do NOT invent specific matchup stats unless provided in data
+   - Stick to general team context: "Baltimore Orioles pitching staff" not "the opposing lefty"
+   - Use phrases like "Orioles pitching" or "Baltimore's rotation" instead of specific pitcher details
+   
+5. **VALIDATION CHECKLIST:**
    - Player name matches exactly? ✓
    - Sport matches exactly? ✓  
    - Stat type matches exactly? ✓
    - Opponent team matches exactly? ✓
+   - NO made-up pitcher stats? ✓
    - NO contradictory information? ✓
 
 // =================================================================================================
@@ -1984,18 +1991,29 @@ Write the analysis for "${parsedBet.betDescription}" in this IDENTICAL style.`
 BET: ${allData.parsedBet.betDescription}
 PLAYER: ${allData.parsedBet.player || 'N/A'}
 SPORT: ${allData.parsedBet.sport?.toUpperCase() || 'N/A'}
+TEAMS: ${allData.parsedBet.teams ? allData.parsedBet.teams.join(' vs ') : 'N/A'}
+LINE: ${allData.parsedBet.line || 'N/A'}
 WIN PROBABILITY: ${analysis.winProbability}%
 CONFIDENCE: ${analysis.confidence.toUpperCase()}
 
+CRITICAL REQUIREMENTS:
+- Use EXACT player name: ${allData.parsedBet.player || 'N/A'}
+- Use EXACT teams: ${allData.parsedBet.teams ? allData.parsedBet.teams.join(' vs ') : 'N/A'}
+- Use EXACT line: ${allData.parsedBet.line || 'N/A'}
+- Return CLEAN HTML (use <strong> tags, not markdown **)
+- Stay focused on THIS SPECIFIC bet, no generic analysis
+- Do NOT invent pitcher handedness or specific pitcher stats
+- Use general team context: "${allData.parsedBet.teams ? allData.parsedBet.teams[1] + ' pitching staff' : 'opposing pitching'}" not specific pitcher details
+
 FORMAT EXACTLY LIKE THIS:
-🎯 **Quick Take:** [1-2 sentences on the bet]
+🎯 <strong>Quick Take:</strong> [1-2 sentences about ${allData.parsedBet.player} vs ${allData.parsedBet.teams ? allData.parsedBet.teams[1] : 'opponent'} for ${allData.parsedBet.line} home runs]
 
-**Key Factors:**
-- [Factor 1 with specific stat]
-- [Factor 2 with realistic context] 
-- [Factor 3 with actionable insight]
+<strong>Key Factors:</strong>
+- [Factor about ${allData.parsedBet.player}'s home run ability vs ${allData.parsedBet.teams ? allData.parsedBet.teams[1] : 'this opponent'}]
+- [Factor about ${allData.parsedBet.teams ? allData.parsedBet.teams[1] : 'opponent'} pitching staff in general - NO specific pitcher details]
+- [Factor about the ${allData.parsedBet.line} home run line difficulty]
 
-**Bottom Line:** [Clear recommendation with confidence level]
+<strong>Bottom Line:</strong> [Clear recommendation based on ${analysis.winProbability}% win probability and ${analysis.confidence} confidence]
 
 ${algorithm.signaturePhrase || 'Get that bag!'}
 
@@ -2119,26 +2137,16 @@ function generateIntelligentFallback(betDescription, errorMessage) {
 }
 
 // REQUIRED MAPPING FUNCTION - ADD THIS IF MISSING
-function mapRecommendation(aiRecommendation) {
-  const recommendation = aiRecommendation?.toUpperCase() || 'HOLD';
-  
-  switch(recommendation) {
-    case 'STRONG_BUY':
-    case 'STRONG_PLAY':
-      return 'strong_play';
-    case 'BUY':
-    case 'LEAN':
-    case 'PLAY':
-      return 'lean'; 
-    case 'HOLD':
-    case 'PASS':
-      return 'pass';
-    case 'SELL':
-    case 'STRONG_SELL':
-    case 'FADE':
-      return 'fade';
-    default: 
-      return 'pass';
+function mapRecommendation(aiRecommendation, winProbability, confidenceThreshold) {
+  // Override AI recommendation based on actual win probability
+  if (winProbability >= 70) {
+    return 'strong_play'; // 70%+ = Strong Play
+  } else if (winProbability >= 55) {
+    return 'lean'; // 55-69% = Lean
+  } else if (winProbability >= 45) {
+    return 'pass'; // 45-54% = Pass (close to 50/50)
+  } else {
+    return 'fade'; // Under 45% = Fade
   }
 }
 
@@ -2274,6 +2282,19 @@ const analyzeBet = async (
       throw new Error('Analysis returned insufficient key factors');
     }
 
+    // CRITICAL FIX: Override confidence based on win probability
+    let correctedConfidence = 'low';
+    if (analysis.winProbability >= 70) {
+      correctedConfidence = 'high';
+    } else if (analysis.winProbability >= 55) {
+      correctedConfidence = 'medium'; 
+    } else {
+      correctedConfidence = 'low'; // 25% should be LOW confidence
+    }
+
+    // Override the analysis confidence
+    analysis.confidence = correctedConfidence;
+
     // Step 6: Generate personalized creator response
     setAnalysisStage('✍️ Generating personalized expert insights...');
     const creatorResponse = await generateEnhancedCreatorResponse(
@@ -2299,7 +2320,7 @@ const analyzeBet = async (
       confidence: analysis.confidence.toLowerCase(),
       keyFactors: analysis.keyFactors,
       creatorResponse,
-      recommendation: mapRecommendation(analysis.recommendation),
+      recommendation: mapRecommendation(analysis.recommendation, Math.round(analysis.winProbability), creatorAlgorithm.confidenceThreshold),
       timestamp: Date.now(),
       marketAnalysis: analysis.marketAnalysis || 'Market analysis completed',
       trendAnalysis: analysis.trendAnalysis || 'Trend analysis completed',
