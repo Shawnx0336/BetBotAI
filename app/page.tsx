@@ -84,14 +84,14 @@ const handleTypedError = (error, context) => {
 
 const PRODUCTION_API_ENDPOINTS = {
   theOddsAPI: 'https://api.the-odds-api.com/v4',
-  openai: 'https://api.openai.com/v1/chat/completions'
-// Sportradar now uses proxy - no direct endpoints needed
+  openai: 'https://api.openai.com/v1/chat/completions',
+  sportradarProxy: '/api/sportradar-proxy' // Add the proxy endpoint 
 };
 
 const PRODUCTION_KEYS = {
   theOdds: typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SPORTS_API_KEY : '',
   openai: typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_OPENAI_API_KEY : '',
-  sportradar: typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SPORTRADAR_API_KEY : '',
+  sportradar: typeof process !== 'undefined' ? process.env.SPORTRADAR_API_KEY : '',
 };
 
 // =================================================================================================
@@ -970,21 +970,25 @@ async function fetchSportradarPlayerStats(playerName, sport) {
     const apiKey = PRODUCTION_KEYS.sportradar;
     
     switch(sport) {
-  case 'mlb':
-    apiUrl = `/api/sportradar-proxy?endpoint=mlb/seasons/2024/REG/leaders/hitting.json`;
-    break;
-  case 'nba':
-    apiUrl = `/api/sportradar-proxy?endpoint=nba/seasons/2023/REG/leaders.json`;
-    break;
-  case 'nfl':
-    apiUrl = `/api/sportradar-proxy?endpoint=nfl/seasons/2024/REG/teams/hierarchy.json`;
-    break;
-  case 'nhl':
-    apiUrl = `/api/sportradar-proxy?endpoint=nhl/seasons/2023/REG/leaders/skaters.json`;
-    break;
-  default:
-    throw new Error(`Unsupported sport: ${sport}`);
-}
+      case 'mlb':
+        // Use MLB League Leaders endpoint - this should have current player stats
+        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.mlb}/seasons/2024/REG/leaders/hitting.json?api_key=${apiKey}`;
+        break;
+      case 'nba':
+        // Use NBA League Leaders endpoint  
+        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.nba}/seasons/2023/REG/leaders.json?api_key=${apiKey}`;
+        break;
+      case 'nfl':
+        // Use NFL League Hierarchy to get team rosters, then find players
+        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.nfl}/seasons/2024/REG/teams/hierarchy.json?api_key=${apiKey}`;
+        break;
+      case 'nhl':
+        // Use NHL League Leaders for skaters
+        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.nhl}/seasons/2023/REG/leaders/skaters.json?api_key=${apiKey}`;
+        break;
+      default:
+        throw new Error(`Unsupported sport: ${sport}`);
+    }
 
     console.log(`🔗 Calling Sportradar: ${apiUrl.replace(apiKey, 'API_KEY_HIDDEN')}`);
     
@@ -1091,22 +1095,21 @@ async function fetchSportradarTeamStats(teams, sport) {
     
     // Use hierarchy endpoints for all sports to get team data
     switch(sport) {
-  case 'mlb':
-    apiUrl = `/api/sportradar-proxy?endpoint=mlb/seasons/2024/REG/leaders/hitting.json`;
-    break;
-  case 'nba':
-    apiUrl = `/api/sportradar-proxy?endpoint=nba/seasons/2023/REG/leaders.json`;
-    break;
-  case 'nfl':
-    apiUrl = `/api/sportradar-proxy?endpoint=nfl/seasons/2024/REG/teams/hierarchy.json`;
-    break;
-  case 'nhl':
-    apiUrl = `/api/sportradar-proxy?endpoint=nhl/seasons/2023/REG/leaders/skaters.json`;
-    break;
-  default:
-    throw new Error(`Unsupported sport: ${sport}`);
-}
-
+      case 'mlb':
+        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.mlb}/seasons/2024/REG/teams/hierarchy.json?api_key=${apiKey}`;
+        break;
+      case 'nba':
+        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.nba}/seasons/2023/REG/teams/hierarchy.json?api_key=${apiKey}`;
+        break;
+      case 'nfl':
+        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.nfl}/seasons/2024/REG/teams/hierarchy.json?api_key=${apiKey}`;
+        break;
+      case 'nhl':
+        apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.nhl}/seasons/2023/REG/teams/hierarchy.json?api_key=${apiKey}`;
+        break;
+      default:
+        throw new Error(`Unsupported sport: ${sport}`);
+    }
 
     console.log(`🔗 Calling Sportradar Teams: ${apiUrl.replace(apiKey, 'API_KEY_HIDDEN')}`);
     
