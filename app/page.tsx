@@ -975,15 +975,12 @@ async function fetchSportradarPlayerStats(playerName, sport) {
         apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.mlb}/seasons/2024/REG/leaders/hitting.json?api_key=${apiKey}`;
         break;
       case 'nba':
-        // Use NBA League Leaders endpoint  
         apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.nba}/seasons/2023/REG/leaders.json?api_key=${apiKey}`;
         break;
       case 'nfl':
-        // Use NFL League Hierarchy to get team rosters, then find players
         apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.nfl}/seasons/2024/REG/teams/hierarchy.json?api_key=${apiKey}`;
         break;
       case 'nhl':
-        // Use NHL League Leaders for skaters
         apiUrl = `${PRODUCTION_API_ENDPOINTS.sportradar.nhl}/seasons/2023/REG/leaders/skaters.json?api_key=${apiKey}`;
         break;
       default:
@@ -2475,7 +2472,21 @@ const BetAnalysisForm = ({
           maxLength={280}
           rows={3}
           className="bet-textarea"
-          style={{ width: '100%', padding: '16px', backgroundColor: 'rgba(51, 65, 85, 0.5)', border: '1px solid #3b82f6', borderRadius: '8px', outline: 'none', fontSize: '18px', resize: 'none', color: '#f8fafc', boxSizing: 'border-box' }}
+          style={{ 
+            width: '100%', 
+            maxWidth: '100%', // ADDED THIS
+            padding: '16px', 
+            backgroundColor: 'rgba(51, 65, 85, 0.5)', 
+            border: '1px solid #3b82f6', 
+            borderRadius: '8px', 
+            outline: 'none', 
+            fontSize: '18px', 
+            resize: 'none', 
+            color: '#f8fafc', 
+            boxSizing: 'border-box',
+            overflow: 'hidden', // ADDED THIS
+            wordWrap: 'break-word' // ADDED THIS
+          }}
           disabled={isLoading}
         ></textarea>
         {aiSuggestions.length > 0 && betInput.length > 0 && (
@@ -2814,7 +2825,24 @@ const CreatorSettings = ({
   const buttonInactiveStyle = { backgroundColor: '#334155', color: '#cbd5e1' }; // Updated colors
 
   return (
-    <div className="creator-settings-container" style={{ width: '100%', maxWidth: '896px', marginLeft: 'auto', marginRight: 'auto', padding: '24px', background: 'linear-gradient(145deg, #1e293b 0%, #334155 100%)', backdropFilter: 'blur(4px)', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div className="creator-settings-container" style={{ 
+      width: '100%', 
+      maxWidth: '896px', 
+      marginLeft: 'auto', 
+      marginRight: 'auto', 
+      padding: '24px', 
+      background: 'linear-gradient(145deg, #1e293b 0%, #334155 100%)', 
+      backdropFilter: 'blur(4px)', 
+      borderRadius: '12px', 
+      boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)', 
+      border: '1px solid rgba(255, 255, 255, 0.1)', 
+      color: '#f8fafc', 
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'center',
+      boxSizing: 'border-box', // ADDED THIS
+      overflowX: 'hidden' // ADDED THIS
+    }}>
       <h2 className="settings-title" style={{ fontSize: '30px', fontWeight: '700', marginBottom: '24px', color: '#0ea5e9', textAlign: 'center' }}>Creator Algorithm Settings</h2>
 
       <div className="nav-tabs" style={{ display: 'flex', marginBottom: '32px', borderBottom: '1px solid #334155', width: '100%', justifyContent: 'center', flexWrap: 'wrap', gap: '8px' }}>
@@ -3872,134 +3900,213 @@ export default function App() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', color: '#f8fafc', fontFamily: 'Inter, system-ui, sans-serif', fontWeight: '400', lineHeight: '1.6', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: '40px', paddingBottom: '40px', paddingLeft: '16px', paddingRight: '16px' }}>
-      {/* Add the mobileResponsiveCSS style block */}
+      {/*
+        The viewport meta tag is essential for responsive design.
+        In a typical React app, this would be placed in the <head> of public/index.html.
+        For environments like Google's Canvas, this might be automatically handled.
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+      */}
       <style jsx>{`
         @media (max-width: 768px) {
-          .main-title {
-            font-size: 36px !important;
-          }
-          .bet-form-container {
-            margin: 0 8px !important;
-            padding: 16px !important;
+          /* Bet Analysis Form Fixes */
+          .bet-textarea {
+            font-size: 16px !important;
+            padding: 14px !important;
+            min-height: 80px !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
           }
           
-          /* Creator Settings Mobile Fixes */
+          .bet-form-container {
+            padding: 16px !important;
+            margin: 0 8px !important;
+            max-width: calc(100vw - 16px) !important;
+            box-sizing: border-box !important;
+          }
+
+          /* Creator Settings Fixes */
           .creator-settings-container {
             padding: 16px !important;
             margin: 0 8px !important;
+            max-width: calc(100vw - 16px) !important;
+            box-sizing: border-box !important;
+            overflow-x: hidden !important;
           }
+          
           .settings-grid {
             grid-template-columns: 1fr !important;
             gap: 16px !important;
           }
+          
           .weight-slider-container {
             margin-bottom: 20px !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
           }
+          
           .weight-input-group {
             flex-direction: column !important;
             gap: 8px !important;
+            width: 100% !important;
           }
+          
           .weight-number-input {
             width: 100% !important;
             max-width: 120px !important;
+            box-sizing: border-box !important;
           }
+          
           .preset-buttons {
             justify-content: space-between !important;
+            flex-wrap: wrap !important;
           }
+          
           .nav-tabs {
             flex-wrap: wrap !important;
             gap: 8px !important;
+            justify-content: center !important;
           }
+          
+          .nav-button {
+            font-size: 14px !important;
+            padding: 8px 16px !important;
+            min-width: auto !important;
+          }
+          
           .export-save-buttons {
             flex-direction: column !important;
             gap: 12px !important;
+            width: 100% !important;
           }
-          /* Fix textarea and form elements */
+          
+          /* Form Elements */
           .custom-style-textarea {
             width: 100% !important;
             max-width: 100% !important;
             box-sizing: border-box !important;
             resize: vertical !important;
+            font-size: 14px !important;
+            padding: 12px !important;
+            min-height: 150px !important;
           }
+          
           .form-input-full {
             width: 100% !important;
             max-width: 100% !important;
             box-sizing: border-box !important;
           }
+          
           .branding-section {
             width: 100% !important;
             overflow-x: hidden !important;
           }
+          
           .color-picker-group {
             flex-wrap: wrap !important;
-          }
-        }
-
-        @media (max-width: 480px) {
-          .main-title {
-            font-size: 28px !important;
-          }
-          .subtitle {
-            font-size: 16px !important;
-          }
-          .user-info {
-            font-size: 12px !important;
-            line-height: 1.4 !important;
-          }
-          .nav-button {
-            font-size: 12px !important;
-            padding: 8px 12px !important;
-          }
-          .bet-textarea {
-            font-size: 16px !important;
-            padding: 12px !important;
-          }
-          .submit-button {
-            font-size: 14px !important;
+            gap: 8px !important;
           }
           
-          /* Creator Settings Ultra-Mobile */
-          .settings-title {
-            font-size: 24px !important;
-          }
-          .section-title {
-            font-size: 18px !important;
-          }
-          .weight-slider-container {
-            margin-bottom: 24px !important;
-          }
-          .weight-input-group {
-            gap: 12px !important;
-          }
           .color-presets {
             grid-template-columns: repeat(4, 1fr) !important;
             gap: 6px !important;
           }
-          .color-preset-button {
-            width: 35px !important;
-            height: 35px !important;
+        }
+
+        @media (max-width: 480px) {
+          /* Ultra-small screens */
+          .bet-textarea {
+            font-size: 16px !important;
+            padding: 12px !important;
+            min-height: 70px !important;
           }
-          /* Ultra-small screen fixes */
+          
+          .bet-form-container {
+            padding: 12px !important;
+            margin: 0 4px !important;
+            max-width: calc(100vw - 8px) !important;
+          }
+
+          .creator-settings-container {
+            padding: 12px !important;
+            margin: 0 4px !important;
+            max-width: calc(100vw - 8px) !important;
+          }
+          
+          .settings-title {
+            font-size: 24px !important;
+            text-align: center !important;
+          }
+          
+          .section-title {
+            font-size: 18px !important;
+          }
+          
+          .weight-slider-container {
+            margin-bottom: 24px !important;
+          }
+          
+          .weight-input-group {
+            gap: 12px !important;
+          }
+          
+          .nav-button {
+            font-size: 12px !important;
+            padding: 6px 12px !important;
+          }
+          
           .custom-style-textarea {
             font-size: 12px !important;
-            padding: 12px !important;
-            min-height: 150px !important;
+            padding: 10px !important;
+            min-height: 120px !important;
           }
+          
           .character-count {
             font-size: 10px !important;
           }
+          
           .color-picker-group {
             flex-direction: column !important;
             align-items: stretch !important;
             gap: 8px !important;
           }
-          .nav-tabs {
-            flex-direction: column !important;
+          
+          .color-presets {
+            grid-template-columns: repeat(3, 1fr) !important;
+          }
+          
+          .color-preset-button {
+            width: 35px !important;
+            height: 35px !important;
+          }
+        }
+
+        /* Universal container fix */
+        @media (max-width: 768px) {
+          * {
+            box-sizing: border-box !important;
+          }
+          
+          .main-title {
+            font-size: 32px !important;
+            text-align: center !important;
+          }
+          
+          .subtitle {
+            font-size: 16px !important;
+            text-align: center !important;
+          }
+          
+          .user-info {
+            font-size: 12px !important;
+            line-height: 1.4 !important;
+            text-align: center !important;
+            word-break: break-all !important;
           }
         }
       `}</style>
 
-      <header style={{ marginBottom: '40px', width: '100%', maxWidth: '896px', textAlign: 'center', paddingLeft: '16px', paddingRight: '16px' }}> {/* Applied padding as per prompt */}
+      <header style={{ marginBottom: '40px', width: '100%', maxWidth: '896px', textAlign: 'center', paddingLeft: '16px', paddingRight: '16px' }}>
         <h1 className="main-title" style={{ fontFamily: 'system-ui, -apple-system, sans-serif', fontWeight: '800', letterSpacing: '-0.025em', fontSize: '48px', color: '#0ea5e9', filter: 'drop-shadow(0 10px 8px rgba(0, 0, 0, 0.04)) drop-shadow(0 4px 3px rgba(0, 0, 0, 0.1))', marginBottom: '8px' }}>BetBot AI</h1>
         <p className="subtitle" style={{ fontSize: '20px', color: '#cbd5e1', fontStyle: 'italic' }}>"Ask the Creator's Algorithm"</p>
         <p className="user-info" style={{ fontSize: '14px', color: '#64748b', marginTop: '8px' }}>
@@ -4013,14 +4120,14 @@ export default function App() {
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '32px', gap: '16px' }}>
             <button
               onClick={() => { setAppView('bet_analysis'); handleAnalyzeAnother(); }}
-              className="nav-button" // Apply class
+              className="nav-button"
               style={getNavButtonStyle(appView === 'bet_analysis')}
             >
               Bet Analysis
             </button>
             <button
               onClick={() => setAppView('creator_settings')}
-              className="nav-button" // Apply class
+              className="nav-button"
               style={getNavButtonStyle(appView === 'creator_settings')}
             >
               Creator Settings
