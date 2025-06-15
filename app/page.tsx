@@ -2000,8 +2000,12 @@ Return JSON:
   }
 
   async executePrompt(prompt, maxTokens, temperature) {
+    if (!this.openaiKey || this.openaiKey.length < 10) {
+      throw new Error('OpenAI API key not configured or invalid');
+    }
+    
     try {
-      const response = await fetchWithTimeout('[https://api.openai.com/v1/chat/completions](https://api.openai.com/v1/chat/completions)', {
+      const response = await fetchWithTimeout('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${this.openaiKey}`,
@@ -2244,7 +2248,7 @@ Return JSON with NFL-specific insights:
   async executePrompt(prompt, maxTokens, temperature) {
     // Same implementation pattern
     try {
-      const response = await fetchWithTimeout('[https://api.openai.com/v1/chat/completions](https://api.openai.com/v1/chat/completions)', {
+      const response = await fetchWithTimeout('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${this.apiKey}`,
@@ -2443,7 +2447,7 @@ Return JSON with NHL-specific insights:
 
   async executePrompt(prompt, maxTokens, temperature) {
     try {
-      const response = await fetchWithTimeout('[https://api.openai.com/v1/chat/completions](https://api.openai.com/v1/chat/completions)', {
+      const response = await fetchWithTimeout('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${this.apiKey}`,
@@ -4921,7 +4925,7 @@ REQUIREMENTS:
 - Include exact signature phrase at end`;
 
   try {
-    const response = await fetchWithTimeout('[https://api.openai.com/v1/chat/completions](https://api.openai.com/v1/chat/completions)', {
+    const response = await fetchWithTimeout('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${PRODUCTION_KEYS.openai}`,
@@ -5019,6 +5023,86 @@ function formatContentWithBullets(content, parsedBet, analysis, algorithm) {
   return formatted;
 }
 
+// =================================================================================================
+// BASIC ANALYZE BET FUNCTION (Fallback Version)
+// =================================================================================================
+
+// Basic version for when enhanced analysis fails
+async function basicAnalyzeBet(betDescription, creatorAlgorithm) {
+  console.log('🔄 Using basic analysis fallback');
+  
+  try {
+    // Step 1: Basic parsing
+    const parsedBet = await aiPoweredBetParsing(betDescription);
+    
+    // Step 2: Get basic data
+    const [odds, stats] = await Promise.allSettled([
+      fetchProductionOdds(betDescription),
+      fetchProductionStats(betDescription)
+    ]);
+    
+    const oddsData = odds.status === 'fulfilled' ? odds.value : getDefaultOdds();
+    const statsData = stats.status === 'fulfilled' ? stats.value : getDefaultStats();
+    
+    // Step 3: Basic analysis
+    let winProbability = 50;
+    let keyFactors = ['Basic analysis mode'];
+    
+    // Simple probability calculation based on parsing confidence and data availability
+    if (parsedBet.confidence > 0.7) {
+      winProbability += 5;
+      keyFactors.push('High parsing confidence');
+    }
+    
+    if (oddsData.source !== 'Fallback (Default Odds)') {
+      winProbability += 3;
+      keyFactors.push('Live odds data available');
+    }
+    
+    if (statsData.source !== 'No Data Available') {
+      winProbability += 2;
+      keyFactors.push('Professional stats available');
+    }
+    
+    // Adjust based on creator algorithm confidence threshold
+    if (winProbability >= creatorAlgorithm.confidenceThreshold) {
+      keyFactors.push('Meets creator confidence threshold');
+    }
+    
+    // Generate basic response
+    const creatorResponse = `🎯 <strong>Quick Take:</strong>
+- ${parsedBet.player || 'This bet'} shows ${winProbability}% win probability
+- Basic analysis based on available data sources
+- ${parsedBet.sport?.toUpperCase() || 'Sport'} analysis with ${parsedBet.confidence > 0.7 ? 'high' : 'moderate'} parsing confidence
+
+<strong>Key Supporting Factors:</strong>
+${keyFactors.map(factor => `• ${factor}`).join('\n')}
+
+<strong>Bottom Line:</strong> ${winProbability >= 55 ? 'LEAN' : winProbability >= 45 ? 'PASS' : 'FADE'} recommendation based on basic analysis.
+
+<span style="color:${creatorAlgorithm.brandColor || '#0ea5e9'};font-weight:bold;">${creatorAlgorithm.signaturePhrase || 'Get that bag!'}</span>`;
+
+    return {
+      betDescription,
+      betType: detectBetType(parsedBet),
+      winProbability: Math.round(winProbability),
+      confidence: winProbability >= 60 ? 'high' : winProbability >= 50 ? 'medium' : 'low',
+      keyFactors,
+      creatorResponse,
+      recommendation: mapRecommendation('basic', Math.round(winProbability), creatorAlgorithm.confidenceThreshold),
+      timestamp: Date.now(),
+      marketAnalysis: 'Basic market analysis - upgrade to enhanced for detailed insights',
+      trendAnalysis: 'Basic trend analysis completed',
+      riskFactors: ['Standard betting variance', 'Limited data analysis depth'],
+      reasoning: `Basic analysis of ${betDescription} yielding ${winProbability}% win probability based on available data sources.`
+    };
+    
+  } catch (error) {
+    console.error('Basic analysis also failed:', error);
+    return generateIntelligentFallback(betDescription, error.message);
+  }
+}
+
 // REQUIRED HELPER FUNCTION
 function generateIntelligentFallback(betDescription, errorMessage) {
   const isPlayerProp = /\b(over|under)\b/i.test(betDescription) && /\b\d+\.?\d*\b/.test(betDescription);
@@ -5048,7 +5132,20 @@ function generateIntelligentFallback(betDescription, errorMessage) {
   
   creatorResponse += 'Please try again in a few minutes when our full analysis system is available. Get that bag! 💰';
   
-  return { winProbability, keyFactors, creatorResponse };
+  return { 
+    betDescription,
+    betType: 'straight',
+    winProbability, 
+    confidence: 'low',
+    keyFactors, 
+    creatorResponse,
+    recommendation: 'pass',
+    timestamp: Date.now(),
+    marketAnalysis: 'Market analysis unavailable',
+    trendAnalysis: 'Trend analysis unavailable', 
+    riskFactors: ['System temporarily unavailable'],
+    reasoning: 'Fallback analysis due to system issues'
+  };
 }
 
 // REQUIRED MAPPING FUNCTION - ADD THIS IF MISSING
@@ -5065,11 +5162,43 @@ function mapRecommendation(aiRecommendation, winProbability, confidenceThreshold
   }
 }
 
-// File: src/analysis/enhancedAnalyzeBet.js (Integrates all previous components)
-// This will replace the `analyzeBet` function
+// =================================================================================================
+// MAIN ANALYZE BET FUNCTION (Enhanced Version)
+// =================================================================================================
+
+// This is the main function called by the UI
+async function analyzeBet(betDescription, creatorAlgorithm, setAnalysisStage) {
+  try {
+    // Try enhanced analysis first
+    return await enhancedAnalyzeBet(betDescription, creatorAlgorithm, setAnalysisStage);
+  } catch (error) {
+    console.warn('Enhanced analysis failed, falling back to basic analysis:', error);
+    if (setAnalysisStage) setAnalysisStage('🔄 Switching to basic analysis mode...');
+    
+    try {
+      // Fall back to basic analysis
+      return await basicAnalyzeBet(betDescription, creatorAlgorithm);
+    } catch (basicError) {
+      console.error('Basic analysis also failed:', basicError);
+      if (setAnalysisStage) setAnalysisStage('');
+      
+      // Final fallback
+      return generateIntelligentFallback(betDescription, basicError.message);
+    }
+  }
+}
+
+// Enhanced version with all advanced features
 async function enhancedAnalyzeBet(betDescription, creatorAlgorithm, setAnalysisStage) {
   const startTime = Date.now();
   const dataEnhancer = new RealtimeDataEnhancer();
+  // Check if we have a valid OpenAI key before trying enhanced analysis
+if (!PRODUCTION_KEYS.openai || PRODUCTION_KEYS.openai.length < 10) {
+    console.warn('OpenAI API key not configured, using basic analysis');
+    setAnalysisStage('🔄 Using basic analysis mode...');
+    return await basicAnalyzeBet(betDescription, creatorAlgorithm);
+  }
+
   const multiStepEngine = new MultiStepAnalysisEngine({
     openai: PRODUCTION_KEYS.openai,
     deepseek: PRODUCTION_KEYS.deepseek // For future ensemble
@@ -5155,9 +5284,10 @@ async function enhancedAnalyzeBet(betDescription, creatorAlgorithm, setAnalysisS
   } catch (error) {
     const errorMessage = handleTypedError(error, 'Enhanced Bet Analysis');
     console.error('🚨 Enhanced analysis pipeline failure:', errorMessage);
-    setAnalysisStage('');
+    if (setAnalysisStage) setAnalysisStage('');
     
-    return generateIntelligentFallback(betDescription, errorMessage);
+    // Don't return fallback here - let the main analyzeBet function handle it
+    throw error;
   }
 }
 
