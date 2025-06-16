@@ -1821,7 +1821,7 @@ function generateDerivedStats(parsedBet) {
         offenseRating: 0.55 + Math.random() * 0.3,
         defenseRating: 0.50 + Math.random() * 0.3,
         headToHeadWinPct: 0.4 + Math.random() * 0.2,
-        injuries: Math.random() > 0.9 ? [`(Derived) ${currentYear} Backup Injured`] : [],
+        injuries: Math.random() > 0.9 ? [`(Derived) Backup Injured`] : [],
         restDays: Math.floor(Math.random() * 5)
       }
     };
@@ -2458,6 +2458,125 @@ function mapRecommendation(aiRecommendation, winProbability, confidenceThreshold
   }
 }
 
+// =================================================================================================
+// ESPN API Endpoints Implementation
+// =================================================================================================
+
+const getSportEndpoint = (sport) => {
+  const endpoints = {
+    'MLB': 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard',
+    'NBA': 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard',
+    'NFL': 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard',
+    'NHL': 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard'
+  };
+  return endpoints[sport] || endpoints['MLB']; // Fallback to MLB
+};
+
+const sportLeagueMap = {
+  'MLB': 'baseball/mlb',
+  'NBA': 'basketball/nba',
+  'NFL': 'football/nfl',
+  'NHL': 'hockey/nhl',
+  'Soccer': 'soccer/fifa.world', // Example, not used in getSportEndpoint
+  'NCAAB': 'basketball/mens-college-basketball' // Example, not used in getSportEndpoint
+};
+
+// Simulate getCurrentSport for demonstration purposes
+// In a real application, this would likely be a state variable or user selection.
+const getCurrentSport = () => {
+    // For testing, let's randomly pick a sport or default to NBA
+    const sports = ['NBA', 'NFL', 'MLB', 'NHL'];
+    return sports[Math.floor(Math.random() * sports.length)];
+};
+
+const fetchESPNData = async (retryCount = 0) => {
+  const MAX_RETRIES = 2;
+  const TIMEOUT_MS = 8000;
+  
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    
+    const currentSport = getCurrentSport(); // Get the current sport to fetch
+    console.log(`Fetching ESPN data for: ${currentSport}`);
+    const response = await fetch(getSportEndpoint(currentSport), {
+      signal: controller.signal,
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'StreakPickem/1.0'
+      }
+    });
+            
+    if (response.ok) {
+      const data = await response.json();
+      clearTimeout(timeoutId);
+      console.log(`Successfully fetched ESPN scoreboard for ${currentSport}`);
+      return { sport: currentSport, data: data }; // Return sport along with data
+    } else {
+      const errorText = await response.text();
+      throw new Error(`ESPN API error: ${response.status} - ${errorText}`);
+    }
+  } catch (error) {
+    // Retry logic with exponential backoff
+    if (retryCount < MAX_RETRIES) {
+      const delayMs = Math.pow(2, retryCount) * 1000;
+      console.warn(`ESPN API fetch failed. Retrying in ${delayMs}ms (Attempt ${retryCount + 1}/${MAX_RETRIES}). Error: ${error.message}`);
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+      return fetchESPNData(retryCount + 1);
+    }
+    throw error;
+  }
+};
+
+// For getting detailed game results after completion
+const fetchGameResultDirect = async (gameId, sport) => {
+  const leaguePath = sportLeagueMap[sport];
+  if (!leaguePath) {
+      console.warn(`No league path found for sport: ${sport}`);
+      return null;
+  }
+  const gameUrl = `https://site.api.espn.com/apis/site/v2/sports/${leaguePath}/summary?event=${gameId}`;
+  
+  console.log(`Fetching ESPN game summary for gameId: ${gameId}, sport: ${sport}`);
+
+  try {
+    const response = await fetchWithTimeout(gameUrl, {
+        headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'StreakPickem/1.0'
+        }
+    });
+    const data = await response.json();
+    
+    // Extract game status and scores from response
+    const competition = data.header?.competitions?.[0];
+    const gameStatus = competition.status?.type?.state;
+    
+    if (gameStatus === 'post') {
+      // Game is completed, extract final scores
+      const competitors = competition.competitors;
+      const homeTeam = competitors.find(c => c.homeAway === 'home');
+      const awayTeam = competitors.find(c => c.homeAway === 'away');
+              
+      return {
+          gameId,
+          status: 'completed',
+          homeScore: parseInt(homeTeam.score || 0),
+          awayScore: parseInt(awayTeam.score || 0),
+          winner: homeTeam.score > awayTeam.score ? 'home' : 'away',
+          homeTeamName: homeTeam.team?.displayName || homeTeam.team?.name,
+          awayTeamName: awayTeam.team?.displayName || awayTeam.team?.name,
+      };
+    }
+    console.log(`Game ${gameId} not finished yet. Current status: ${gameStatus}`);
+    return null; // Game not finished yet
+  } catch (error) {
+    console.error(`Error fetching game result for ${gameId} (${sport}):`, error);
+    return null;
+  }
+};
+
+
 const analyzeBet = async (
   betDescription,
   creatorAlgorithm,
@@ -2488,6 +2607,48 @@ const analyzeBet = async (
     if (!parsedBet.sport) {
       throw new Error(`Unable to identify sport from bet description: "${betDescription}"`);
     }
+
+    // NEW: Step 1.5: Fetch ESPN Scoreboard Data
+    setAnalysisStage('🌐 Fetching live ESPN scoreboard data...');
+    let espnData = null;
+    try {
+        const { sport: fetchedSport, data: scoreboardData } = await fetchESPNData();
+        espnData = { sport: fetchedSport, scoreboard: scoreboardData };
+        console.log('✅ ESPN Scoreboard Data fetched successfully.');
+
+        // Find relevant game from ESPN data
+        if (parsedBet.teams && parsedBet.teams.length >= 2 && espnData.scoreboard?.events) {
+            const normalizedBetTeams = parsedBet.teams.map(t => t.toLowerCase());
+            const matchingEvent = espnData.scoreboard.events.find(event => {
+                const homeTeam = event.competitions?.[0]?.competitors?.[0]?.team?.displayName?.toLowerCase();
+                const awayTeam = event.competitions?.[0]?.competitors?.[1]?.team?.displayName?.toLowerCase();
+                return (homeTeam && normalizedBetTeams.includes(homeTeam) && awayTeam && normalizedBetTeams.includes(awayTeam)) ||
+                       (homeTeam && normalizedBetTeams.includes(awayTeam) && awayTeam && normalizedBetTeams.includes(homeTeam));
+            });
+
+            if (matchingEvent) {
+                console.log('✅ Found matching game event in ESPN data.');
+                // Optionally fetch detailed results if game is completed
+                const gameId = matchingEvent.id;
+                const gameStatus = matchingEvent.status?.type?.state;
+                if (gameStatus === 'post') {
+                    setAnalysisStage('📝 Fetching detailed game results...');
+                    const detailedResult = await fetchGameResultDirect(gameId, fetchedSport);
+                    if (detailedResult) {
+                        espnData.detailedGameResult = detailedResult;
+                        console.log('✅ Detailed game result fetched (completed game).');
+                    }
+                }
+            } else {
+                console.log('⚠️ No exact matching game event found in ESPN data for parsed teams.');
+            }
+        }
+    } catch (espnError) {
+        const errorMessage = handleTypedError(espnError, 'ESPN Data Fetch');
+        console.warn('⚠️ ESPN data fetch failed:', errorMessage);
+        // Do not rethrow, allow analysis to continue with other data sources or fallbacks
+    }
+
 
     // Step 2: SEQUENTIAL API calls - NO PARALLEL EXECUTION THAT CAUSES SCOPE ISSUES
     setAnalysisStage('📊 Fetching premium live odds data...');
@@ -2558,7 +2719,8 @@ const analyzeBet = async (
         stats, 
         { 
           liveMarketData: liveMarketData,
-          historicalContext: historicalContext
+          historicalContext: historicalContext,
+          espnData: espnData // Pass ESPN data to comprehensive analysis
         }
       );
     } catch (compAnalysisError) {
@@ -2608,7 +2770,7 @@ const analyzeBet = async (
     const creatorResponse = await generateEnhancedCreatorResponse(
       analysis,
       creatorAlgorithm,
-      { parsedBet, odds, stats, liveMarketData, historicalContext }
+      { parsedBet, odds, stats, liveMarketData, historicalContext, espnData } // Pass ESPN data here too
     );
 
     // Validate creator response quality
@@ -3744,6 +3906,31 @@ async function testAPIIntegrations() {
     const errorMessage = handleTypedError(error, 'Full Integration Test'); // ERROR #6
     console.log('❌ Full Integration Test Failed:', errorMessage);
   }
+
+  // Test 5: ESPN Data Fetch
+  try {
+      console.log('🌐 Testing ESPN Scoreboard Data Fetch...');
+      const espnScoreboard = await fetchESPNData();
+      if (espnScoreboard && espnScoreboard.data && espnScoreboard.data.events && espnScoreboard.data.events.length > 0) {
+          console.log(`✅ ESPN Scoreboard Fetch Success! Found ${espnScoreboard.data.events.length} events for ${espnScoreboard.sport}.`);
+          
+          // Try fetching a detailed result for the first event if it's completed
+          const firstEvent = espnScoreboard.data.events[0];
+          if (firstEvent.status?.type?.state === 'post' && firstEvent.id) {
+              const detailedGame = await fetchGameResultDirect(firstEvent.id, espnScoreboard.sport);
+              if (detailedGame && detailedGame.status === 'completed') {
+                  console.log(`✅ ESPN Detailed Game Result Fetch Success for ${detailedGame.homeTeamName} vs ${detailedGame.awayTeamName}. Final Score: ${detailedGame.homeScore}-${detailedGame.awayScore}`);
+              } else {
+                  console.log('⚠️ ESPN Detailed Game Result Fetch: No completed game to test or fetch failed.');
+              }
+          }
+      } else {
+          console.log('⚠️ ESPN Scoreboard Fetch: No events found or data structure unexpected.');
+      }
+  } catch (error) {
+      const errorMessage = handleTypedError(error, 'ESPN Data Fetch Test');
+      console.log(`❌ ESPN Data Fetch Test Failed: ${errorMessage}`);
+  }
 }
 
 async function comprehensiveSystemTest() {
@@ -3821,7 +4008,8 @@ async function comprehensiveSystemTest() {
     } else {
       throw new Error('Invalid player prop analysis');
     }
-  } catch (error) { // Fix: Type safety
+  } catch (error) // Fix: Type safety
+  { 
     const errorMessage = handleTypedError(error, 'Player Prop Bet Test'); // ERROR #6
     console.log('❌ Player prop bet failed:', errorMessage);
     testResults.analysisErrors++;
@@ -3886,7 +4074,7 @@ async function comprehensiveSystemTest() {
 
   // Test 6: API Integration Tests
   console.log('\n🔗 TEST 6: API Integration');
-  testResults.totalTests += 3;
+  testResults.totalTests += 4; // Updated to include ESPN API tests
   
   // OpenAI API Test
   try {
@@ -3954,6 +4142,22 @@ async function comprehensiveSystemTest() {
     console.log(`❌ RapidAPI API test failed: ${errorMessage}`);
     testResults.apiErrors++;
   }
+
+  // ESPN Scoreboard API Test
+  try {
+      const espnScoreboardResult = await fetchESPNData();
+      if (espnScoreboardResult && espnScoreboardResult.data && espnScoreboardResult.data.events && espnScoreboardResult.data.events.length > 0) {
+          console.log(`✅ ESPN Scoreboard API connection successful for ${espnScoreboardResult.sport}.`);
+          testResults.passedTests++;
+      } else {
+          throw new Error('ESPN Scoreboard API returned no events or unexpected data.');
+      }
+  } catch (error) {
+      const errorMessage = handleTypedError(error, 'ESPN Scoreboard API Test');
+      console.log(`❌ ESPN Scoreboard API test failed: ${errorMessage}`);
+      testResults.apiErrors++;
+  }
+
 
   // Final Results
   console.log('\n📊 COMPREHENSIVE TEST RESULTS:');
